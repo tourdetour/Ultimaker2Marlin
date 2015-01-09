@@ -15,7 +15,11 @@ Marlin/Visual Micro/Compile.vmps.xml
 Marlin/Visual Micro/Configuration.Debug.vmps.xml
 Marlin/_Ultimaker2Dual
 Marlin/_Ultimaker2
+Marlin/_Ultimaker2extended
+Marlin/_Ultimaker2extendedDual
+Marlin/_Ultimaker2go
 *.bak
 *.patch
 .bin
 .obj
+resources
