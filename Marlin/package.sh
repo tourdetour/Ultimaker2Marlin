@@ -11,7 +11,11 @@
 ##Do we need to create the final archive
 ARCHIVE_FOR_DISTRIBUTION=1
 ##Which version name are we appending to the final archive
+<<<<<<< HEAD
 export BUILD_NAME=15.01-RC7
+=======
+export BUILD_NAME=15.01-RC9
+>>>>>>> geek_mode
 
 #############################
 # Support functions
@@ -115,7 +119,18 @@ fi
 #Build the Ultimaker2 firmwares.
 # gitClone https://github.com/TinkerGnome/Ultimaker2Marlin.git _Ultimaker2Marlin
 # cd _Ultimaker2Marlin/Marlin
+<<<<<<< HEAD
 $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
+=======
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2 DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}\"' TEMP_SENSOR_1=0 EXTRUDERS=1" clean
+sleep 2
+mkdir _Ultimaker2
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2 DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2Dual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}\"' TEMP_SENSOR_1=20 EXTRUDERS=2" clean
+sleep 2
+mkdir _Ultimaker2Dual
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2Dual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}\"' TEMP_SENSOR_1=20 EXTRUDERS=2"
+>>>>>>> geek_mode
 # cd -
 
 cp _Ultimaker2go/Marlin.hex resources/firmware/TinkerGnome-MarlinUltimaker2go-${BUILD_NAME}.hex
