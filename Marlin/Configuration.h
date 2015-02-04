@@ -10,11 +10,7 @@
 // build by the user have been successfully uploaded into firmware.
 #define STRING_VERSION_CONFIG_H __DATE__ " " __TIME__ // build date and time
 #ifndef STRING_CONFIG_H_AUTHOR
-<<<<<<< HEAD
-#define STRING_CONFIG_H_AUTHOR "Tinker 15.01-RC7" // Who made the changes.
-=======
-#define STRING_CONFIG_H_AUTHOR "Tinker 15.01-RC9" // Who made the changes.
->>>>>>> geek_mode
+#define STRING_CONFIG_H_AUTHOR "Tinker 15.01" // Who made the changes.
 #endif
 
 // SERIAL_PORT selects which serial port should be used for communication with the host.

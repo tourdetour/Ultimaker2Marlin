@@ -7,14 +7,15 @@
 # CONFIGURATION
 #############################
 
-
-##Do we need to create the final archive
-ARCHIVE_FOR_DISTRIBUTION=1
 ##Which version name are we appending to the final archive
+<<<<<<< HEAD
 <<<<<<< HEAD
 export BUILD_NAME=15.01-RC7
 =======
 export BUILD_NAME=15.01-RC9
+>>>>>>> geek_mode
+=======
+export BUILD_NAME=15.01
 >>>>>>> geek_mode
 
 #############################

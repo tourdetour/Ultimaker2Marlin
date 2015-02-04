@@ -136,6 +136,7 @@
 // M303 - PID relay autotune S<temperature> sets the target temperature. (default target temperature = 150C)
 // M304 - Set bed PID parameters P I and D
 // M400 - Finish all moves
+// M401 - Cancel as many moves as possible
 // M500 - stores paramters in EEPROM
 // M501 - reads parameters from EEPROM (if you need reset them after you changed them temporarily).
 // M502 - reverts to the default "factory settings".  You still need to store them in EEPROM afterwards if you want to.
@@ -1950,6 +1951,9 @@ void process_commands()
       st_synchronize();
     }
     break;
+    case 401:
+      quickStop();
+    break;
     case 500: // M500 Store settings in EEPROM
     {
         Config_StoreSettings();
@@ -2104,7 +2108,7 @@ void process_commands()
     break;
     #endif //FILAMENTCHANGEENABLE
     #ifdef ENABLE_ULTILCD2
-    case 601: //Pause in UltiLCD2, X[pos] Y[pos] Z[relative lift] L[later retract distance]
+    case 601: //M601 Pause in UltiLCD2, X[pos] Y[pos] Z[relative lift] L[later retract distance]
     {
         st_synchronize();
         float target[4];
@@ -2168,13 +2172,16 @@ void process_commands()
           target[E_AXIS] += code_value()/volume_to_filament_length[active_extruder];
         }
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder); //Move back the L feed.
-        plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], target[Z_AXIS], target[E_AXIS], homing_feedrate[X_AXIS]/60, active_extruder); //move xy back
-        plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], homing_feedrate[Z_AXIS]/60, active_extruder); //move z back
-        plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], retract_feedrate/60, active_extruder); //final untretract
-        current_position[X_AXIS] = lastpos[X_AXIS];
-        current_position[Y_AXIS] = lastpos[Y_AXIS];
-        current_position[Z_AXIS] = lastpos[Z_AXIS];
-        current_position[E_AXIS] = lastpos[E_AXIS];
+        if (card.sdprinting)    //Only move to the last position if we are still printing. Else we aborted.
+        {
+            plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], target[Z_AXIS], target[E_AXIS], homing_feedrate[X_AXIS]/60, active_extruder); //move xy back
+            plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], homing_feedrate[Z_AXIS]/60, active_extruder); //move z back
+            plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], retract_feedrate/60, active_extruder); //final untretract
+            current_position[X_AXIS] = lastpos[X_AXIS];
+            current_position[Y_AXIS] = lastpos[Y_AXIS];
+            current_position[Z_AXIS] = lastpos[Z_AXIS];
+            current_position[E_AXIS] = lastpos[E_AXIS];
+        }
     }
     break;
 

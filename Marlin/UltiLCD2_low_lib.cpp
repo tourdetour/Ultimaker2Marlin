@@ -9,7 +9,6 @@
  * Implementation of the LCD display routines for a SSD1309 OLED graphical display connected with i2c.
  **/
 #define LCD_RESET_PIN 5
-#define LCD_CS_PIN    6
 #define I2C_SDA_PIN   20
 #define I2C_SCL_PIN   21
 
@@ -37,13 +36,11 @@
 #define LCD_COMMAND_DISPLAY_OFF             0xAE
 #define LCD_COMMAND_DISPLAY_ON              0xAF
 #define LCD_COMMAND_NOP                     0xE3
-#define LCD_COMMAND_LOCK_COMMANDS           0xDF
+#define LCD_COMMAND_LOCK_COMMANDS           0xFD
 
 #define LCD_COMMAND_SET_ADDRESSING_MODE     0x20
 
 unsigned long last_user_interaction=0;
-// this is changed by the various menus to enable or disable encoder acceleration for that time.
-uint8_t max_encoder_acceleration = 1;
 
 /** Backbuffer for LCD */
 uint8_t lcd_buffer[LCD_GFX_WIDTH * LCD_GFX_HEIGHT / 8];
@@ -87,11 +84,15 @@ static void i2c_led_write(uint8_t addr, uint8_t data)
 
 void lcd_lib_init()
 {
-    SET_OUTPUT(LCD_CS_PIN);
     SET_OUTPUT(LCD_RESET_PIN);
 
     SET_OUTPUT(I2C_SDA_PIN);
     SET_OUTPUT(I2C_SCL_PIN);
+
+    //Set unused pins in the 10 pin connector to GND to improve shielding of the cable.
+    SET_OUTPUT(LCD_PINS_D4); WRITE(LCD_PINS_D4, 0); //RXD3/PJ1
+    SET_OUTPUT(LCD_PINS_ENABLE); WRITE(LCD_PINS_ENABLE, 0); //TXD3/PJ0
+    SET_OUTPUT(LCD_PINS_D7); WRITE(LCD_PINS_D7, 0); //PH3
 
     //Set the beeper as output.
     SET_OUTPUT(BEEPER);
@@ -107,7 +108,6 @@ void lcd_lib_init()
     SET_INPUT(SDCARDDETECT);
     WRITE(SDCARDDETECT, HIGH);
 
-    WRITE(LCD_CS_PIN, 0);
     WRITE(I2C_SDA_PIN, 1);
     WRITE(I2C_SCL_PIN, 1);
 
@@ -239,12 +239,11 @@ void lcd_lib_led_color(uint8_t r, uint8_t g, uint8_t b)
 }
 
 // norpchen
-// the baseline ASCII->font table offset.  Was 32 (space) but shifted down by four as I added four custom characters to the font
+// the baseline ASCII->font table offset.  Was 32 (space) but shifted down as I added custom characters to the font
 // had to add them to the start of the table, because we're using char, which are signed and top out at 128, which is already the max table value.
-#define FONT_BASE_CHAR 28
+#define FONT_BASE_CHAR 0x1D
 
 static const uint8_t lcd_font_7x5[] PROGMEM = {
-	0x7C, 0x4A, 0x69, 0x4A, 0x7C,       // " HOME_SYMBOL "
 	0x11, 0x15, 0x0A, 0x00, 0x00,       // ^3 " CUBED_SYMBOL "
 	0x19, 0x15, 0x12, 0x00, 0x00,       // ^2 " SQUARED_SYMBOL "
 	0x06, 0x09, 0x09, 0x06, 0x00,    	// deg C  " DEGREE_C_SYMBOL "
@@ -836,48 +835,7 @@ void lcd_lib_buttons_update_interrupt()
 
 void lcd_lib_buttons_update()
 {
-// Added encoder acceleration (Lars Jun 2014)
-// if we detect we're moving the encoder the same direction for repeated frames, we increase our step size (up to a maximum)
-// if we stop, or change direction, set the step size back to +/- 1
-// we only want this for SOME things, like changing a value, and not for other things, like a menu.
-// so we have an enable bit
-	static int8_t accelFactor = 0;
-	if (lcd_lib_encoder_pos_interrupt != 0)
-    {
-        if ((ui_mode & UI_MODE_TINKERGNOME) && (max_encoder_acceleration > 1))
-        {
-            if (lcd_lib_encoder_pos_interrupt > 0)		// positive -- were we already going positive last time?  If so, increase our accel
-            {
-                // increase positive acceleration
-                if (accelFactor >= 0)
-                    ++accelFactor;
-                else
-                    accelFactor = 1;
-                // beep with a pitch changing tone based on the acceleration factor
-                // lcd_lib_beep_ext (500+accelFactor*25, 10);
-            }
-            else //if (lcd_lib_encoder_pos_interrupt <0)
-            {
-                // decrease negative acceleration
-                if (accelFactor <= 0 )
-                    --accelFactor;
-                else
-                    accelFactor = -1;
-                // lcd_lib_beep_ext (600+accelFactor*25, 10);
-            }
-            lcd_lib_tick();
-            lcd_lib_encoder_pos += lcd_lib_encoder_pos_interrupt * constrain(abs(accelFactor), 1, max_encoder_acceleration);
-        }
-        else
-        {
-            lcd_lib_encoder_pos += lcd_lib_encoder_pos_interrupt;
-        }
-    }
-    else
-    {
-        // no movement -> no acceleration
-        accelFactor=0;
-    }
+    manage_encoder_position(lcd_lib_encoder_pos_interrupt);
 
     uint8_t buttonState = !READ(BTN_ENC);
     lcd_lib_button_pressed = (buttonState && !lcd_lib_button_down);
