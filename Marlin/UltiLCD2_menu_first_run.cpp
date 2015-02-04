@@ -20,8 +20,6 @@
 #define BED_RIGHT_ADJUST_X (X_MAX_POS - 10)
 #define BED_RIGHT_ADJUST_Y 20
 
-void doCooldown();//TODO
-
 static void lcd_menu_first_run_init_2();
 static void lcd_menu_first_run_init_3();
 
@@ -71,7 +69,7 @@ static void homeAndParkHeadForCenterAdjustment2()
     char buffer[32];
     sprintf_P(buffer, PSTR("G1 F%i Z%i X%i Y%i"), int(homing_feedrate[0]), 35, X_MAX_LENGTH/2, Y_MAX_LENGTH - 10);
     enquecommand(buffer);
-    lcd_remove_menu();
+    menu.return_to_previous(false);
 }
 //Started bed leveling from the calibration menu
 void lcd_menu_first_run_start_bed_leveling()
@@ -271,12 +269,21 @@ static void homeBed()
     add_homeing[Z_AXIS] += LEVELING_OFFSET;  //Adjust the Z homing position to account for the thickness of the paper.
     // now that we are finished, save the settings to EEPROM
     Config_StoreSettings();
-    enquecommand_P(PSTR("G28 Z0"));
+    if (IS_FIRST_RUN_DONE())
+    {
+        // home all
+        enquecommand_P(PSTR("G28"));
+    }
+    else
+    {
+        // home z-axis
+        enquecommand_P(PSTR("G28 Z0"));
+    }
 }
 
 static void lcd_menu_first_run_bed_level_done()
 {
-    lcd_change_to_previous_menu();
+    menu.return_to_previous();
     homeBed();
 }
 
@@ -324,7 +331,7 @@ static void lcd_menu_first_run_material_load_heatup()
         for(uint8_t e=0; e<EXTRUDERS; e++)
             volume_to_filament_length[e] = 1.0;//Set the extrusion to 1mm per given value, so we can move the filament a set distance.
 
-        lcd_replace_menu(lcd_menu_first_run_material_load_insert);
+        menu.replace_menu(menu_t(lcd_menu_first_run_material_load_insert));
         temp = target;
     }
 
@@ -394,7 +401,7 @@ static void lcd_menu_first_run_material_load_forward()
         lcd_lib_beep();
         led_glow_dir = led_glow = 0;
         digipot_current(2, motor_current_setting[2]*2/3);//Set E motor power lower so the motor will skip instead of grind.
-        lcd_replace_menu(lcd_menu_first_run_material_load_wait);
+        menu.replace_menu(menu_t(lcd_menu_first_run_material_load_wait));
         SELECT_MAIN_MENU_ITEM(0);
     }
 
@@ -439,8 +446,9 @@ static void lcd_menu_first_run_material_select_1()
 
 static char* lcd_material_select_callback(uint8_t nr)
 {
-    eeprom_read_block(card.longFilename, EEPROM_MATERIAL_NAME_OFFSET(nr), 8);
-    return card.longFilename;
+    eeprom_read_block(LCD_CACHE_FILENAME(0), EEPROM_MATERIAL_NAME_OFFSET(nr), 8);
+    LCD_CACHE_FILENAME(0)[8] = '\0';
+    return LCD_CACHE_FILENAME(0);
 }
 
 static void lcd_material_select_details_callback(uint8_t nr)
@@ -465,8 +473,8 @@ static void lcd_menu_first_run_material_select_material()
         for(uint8_t e=0; e<EXTRUDERS; e++)
             lcd_material_set_material(SELECTED_SCROLL_MENU_ITEM(), e);
         SET_FIRST_RUN_DONE();
-        lcd_replace_menu(lcd_menu_first_run_material_select_confirm_material, MAIN_MENU_ITEM_POS(0));
-        strcat_P(card.longFilename, PSTR(" as material,"));
+        menu.replace_menu(menu_t(lcd_menu_first_run_material_select_confirm_material, MAIN_MENU_ITEM_POS(0)));
+        strcat_P(LCD_CACHE_FILENAME(0), PSTR(" as material,"));
     }
 }
 
@@ -476,7 +484,7 @@ static void lcd_menu_first_run_material_select_confirm_material()
     lcd_question_screen(lcd_menu_first_run_material_select_2, lcd_remove_menu, PSTR("YES"), lcd_menu_first_run_material_select_material, lcd_remove_menu, PSTR("NO"));
     DRAW_PROGRESS_NR(18);
     lcd_lib_draw_string_centerP(20, PSTR("You have chosen"));
-    lcd_lib_draw_string_center(30, card.longFilename);
+    lcd_lib_draw_string_center(30, LCD_CACHE_FILENAME(0));
     lcd_lib_draw_string_centerP(40, PSTR("is this right?"));
     lcd_lib_update_screen();
 }
@@ -507,7 +515,7 @@ static void lcd_menu_first_run_print_card_detect()
 {
     if (!card.sdInserted)
     {
-        lcd_info_screen(lcd_menu_main);
+        lcd_info_screen(lcd_return_to_main_menu);
         DRAW_PROGRESS_NR(21);
         lcd_lib_draw_string_centerP(20, PSTR("Please insert SD-card"));
         lcd_lib_draw_string_centerP(30, PSTR("that came with"));
@@ -519,7 +527,7 @@ static void lcd_menu_first_run_print_card_detect()
 
     if (!card.isOk())
     {
-        lcd_info_screen(lcd_menu_main);
+        lcd_info_screen(lcd_return_to_main_menu);
         DRAW_PROGRESS_NR(21);
         lcd_lib_draw_string_centerP(30, PSTR("Reading card..."));
         lcd_lib_update_screen();
