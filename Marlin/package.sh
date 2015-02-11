@@ -8,7 +8,7 @@
 #############################
 
 ##Which version name are we appending to the final archive
-export BUILD_NAME=15.01
+export BUILD_NAME=15.02-RC1
 
 #############################
 # Support functions
@@ -121,7 +121,6 @@ $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_V
 sleep 2
 mkdir _Ultimaker2extendedDual
 $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extendedDual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}ex\"' TEMP_SENSOR_1=20 EXTRUDERS=2"
-
 # cd -
 
 cp _Ultimaker2extended/Marlin.hex resources/firmware/TinkerGnome-MarlinUltimaker2extended-${BUILD_NAME}.hex

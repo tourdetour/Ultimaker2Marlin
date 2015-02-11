@@ -28,7 +28,6 @@ static void lcd_menu_print_error();
 static void lcd_menu_print_classic_warning();
 static void lcd_menu_print_ready_cooled_down();
 static void lcd_menu_print_tune_retraction();
-static void lcd_menu_print_pause();
 
 bool primed = false;
 static bool pauseRequested = false;
@@ -115,16 +114,10 @@ void doStartPrint()
 	// zero the extruder position
 	current_position[E_AXIS] = 0.0;
 	plan_set_e_position(0);
+	primed = false;
 
 	// since we are going to prime the nozzle, forget about any G10/G11 retractions that happened at end of previous print
 	retracted = false;
-
-	// note that we have primed, so that we know to de-prime at the end
-	primed = true;
-
-	// move to priming height
-    current_position[Z_AXIS] = PRIMING_HEIGHT;
-    plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[Z_AXIS], 0);
 
     for(uint8_t e = 0; e<EXTRUDERS; e++)
     {
@@ -137,6 +130,13 @@ void doStartPrint()
         }
         active_extruder = e;
 
+        if (!primed)
+        {
+            // move to priming height
+            current_position[Z_AXIS] = PRIMING_HEIGHT;
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[Z_AXIS], active_extruder);
+            primed = true;
+        }
         // undo the end-of-print retraction
         plan_set_e_position((0.0 - END_OF_PRINT_RETRACTION) / volume_to_filament_length[e]);
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
@@ -155,6 +155,8 @@ void doStartPrint()
 #endif
     }
     active_extruder = 0;
+	// note that we have primed, so that we know to de-prime at the end
+	primed = true;
 
     postMenuCheck = checkPrintFinished;
     card.startFileprint();
@@ -415,7 +417,7 @@ void lcd_menu_print_select()
 
                         enquecommand_P(PSTR("G28"));
                         enquecommand_P(PSTR("G1 F12000 X5 Y5"));
-                        if (ui_mode & UI_MODE_TINKERGNOME)
+                        if (ui_mode & UI_MODE_EXPERT)
                             menu.replace_menu(menu_t(lcd_menu_print_heatup_tg));
                         else
                             menu.replace_menu(menu_t(lcd_menu_print_heatup));
@@ -469,7 +471,7 @@ static void lcd_menu_print_heatup()
             if (ready)
             {
                 doStartPrint();
-                if (ui_mode & UI_MODE_TINKERGNOME)
+                if (ui_mode & UI_MODE_EXPERT)
                 {
                     menu.replace_menu(menu_t(lcd_menu_printing_tg, MAIN_MENU_ITEM_POS(2)), false);
                 }else{
@@ -539,6 +541,11 @@ static void lcd_menu_print_printing()
 //        }
 //    }
 //    else
+    if (card.pause)
+    {
+        menu.add_menu(menu_t(lcd_menu_print_pause, MAIN_MENU_ITEM_POS(0)), true);
+    }
+    else
     {
         lcd_question_screen(lcd_menu_print_tune, NULL, PSTR("TUNE"), NULL, lcd_print_pause, PSTR("PAUSE"));
         uint8_t progress = card.getFilePos() / ((card.getFileSize() + 123) / 124);
@@ -598,9 +605,8 @@ static void lcd_menu_print_printing()
         }
 
         lcd_progressbar(progress);
+        lcd_lib_update_screen();
     }
-
-    lcd_lib_update_screen();
 }
 
 static void lcd_menu_print_error()
@@ -621,7 +627,7 @@ static void lcd_menu_print_error()
 
 static void lcd_menu_print_classic_warning()
 {
-    lcd_question_screen((ui_mode & UI_MODE_TINKERGNOME) ? lcd_menu_printing_tg : lcd_menu_print_printing, userStartPrint, PSTR("CONTINUE"), lcd_menu_print_select, lcd_remove_menu, PSTR("CANCEL"));
+    lcd_question_screen((ui_mode & UI_MODE_EXPERT) ? lcd_menu_printing_tg : lcd_menu_print_printing, userStartPrint, PSTR("CONTINUE"), lcd_menu_print_select, lcd_remove_menu, PSTR("CANCEL"));
 
     lcd_lib_draw_string_centerP(10, PSTR("This file will"));
     lcd_lib_draw_string_centerP(20, PSTR("override machine"));
@@ -637,6 +643,7 @@ void lcd_menu_print_abort()
     lcd_question_screen(lcd_menu_print_ready, userAbortPrint, PSTR("YES"), NULL, lcd_change_to_previous_menu, PSTR("NO"));
 
     lcd_lib_draw_string_centerP(20, PSTR("Abort the print?"));
+    lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 - 4, 32, standbyGfx);
 
     lcd_lib_update_screen();
 }
@@ -1005,9 +1012,17 @@ static void drawPauseSubmenu(uint8_t nr, uint8_t &flags)
                                 , LCD_LINE_HEIGHT
                                 , 52
                                 , LCD_LINE_HEIGHT*4
-                                , PSTR("RESUME|PRINT")
+                                , PSTR("RESUME|")
                                 , ALIGN_CENTER
                                 , flags);
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_clear_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, startGfx);
+        }
+        else
+        {
+            lcd_lib_draw_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, startGfx);
+        }
     }
     else if (nr == index++)
     {
@@ -1031,19 +1046,21 @@ static void drawPauseSubmenu(uint8_t nr, uint8_t &flags)
     }
     else if (nr == index++)
     {
-//        if (flags & MENU_SELECTED)
-//        {
-//
-//            lcd_lib_draw_string_leftP(5, PSTR("Abort print"));
-//            flags |= MENU_STATUSLINE;
-//        }
-        LCDMenu::drawMenuString_P(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT+3
+        LCDMenu::drawMenuBox(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 1
                                 , BOTTOM_MENU_YPOS
                                 , 52
                                 , LCD_CHAR_HEIGHT
-                                , PSTR("ABORT")
-                                , ALIGN_CENTER
                                 , flags);
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_clear_stringP(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 3*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, PSTR("ABORT"));
+            lcd_lib_clear_gfx(LCD_GFX_WIDTH/2 + 10, BOTTOM_MENU_YPOS, standbyGfx);
+        }
+        else
+        {
+            lcd_lib_draw_stringP(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 3*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, PSTR("ABORT"));
+            lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 + 10, BOTTOM_MENU_YPOS, standbyGfx);
+        }
     }
 }
 
