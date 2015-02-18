@@ -20,6 +20,11 @@ extern uint8_t ui_mode;
 extern uint16_t led_timeout;
 extern const uint8_t standbyGfx[];
 extern const uint8_t startGfx[];
+extern const uint8_t pauseGfx[];
+extern const uint8_t backGfx[];
+extern const uint8_t hourglassGfx[];
+
+extern float recover_height;
 
 void tinkergnome_init();
 void lcd_menu_maintenance_expert();
@@ -30,6 +35,7 @@ void lcd_lib_draw_heater(uint8_t x, uint8_t y, uint8_t heaterPower);
 void manage_led_timeout();
 void manage_encoder_position(int8_t encoder_pos_interrupt);
 void lcd_menu_expert_extrude();
+void recover_start_print();
 
 #endif//ULTI_LCD2_MENU_TINKERGNOME_H
 

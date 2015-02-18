@@ -86,7 +86,7 @@ struct menu_t {
     }
 };
 
-typedef char* (*entryNameCallback_t)(uint8_t nr);
+typedef char* (*entryNameCallback_t)(uint8_t nr, char *buffer);
 typedef void (*entryDetailsCallback_t)(uint8_t nr);
 typedef const menu_t & (*menuItemCallback_t) (uint8_t nr, menu_t &opt);
 typedef void (*menuDrawCallback_t) (uint8_t nr, uint8_t &flags);
@@ -119,6 +119,7 @@ public:
 
     void process_submenu(menuItemCallback_t getMenuItem, uint8_t len);
     void reset_submenu();
+    void set_selection(int8_t index);
     void drawSubMenu(menuDrawCallback_t drawFunc, uint8_t nr, uint8_t &flags);
     void drawSubMenu(menuDrawCallback_t drawFunc, uint8_t nr);
     FORCE_INLINE bool isSubmenuSelected() const { return (selectedSubmenu >= 0); }
@@ -145,12 +146,12 @@ private:
 
 };
 
-
 extern LCDMenu menu;
-extern uint8_t menu_index;
 
 FORCE_INLINE void lcd_change_to_previous_menu() { menu.return_to_previous(); }
 FORCE_INLINE void lcd_return_to_main_menu() { menu.return_to_main(); }
 FORCE_INLINE void lcd_remove_menu() { menu.return_to_previous(false); }
+FORCE_INLINE void lcd_select_first_submenu() { menu.set_selection(0); }
+FORCE_INLINE void lcd_reset_submenu() { menu.reset_submenu(); }
 
 #endif
