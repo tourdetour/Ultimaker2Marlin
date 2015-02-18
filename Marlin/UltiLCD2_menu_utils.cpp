@@ -10,7 +10,6 @@
 #define LED_INPUT() lcd_lib_led_color(192, 8, 0)
 
 LCDMenu menu;
-uint8_t menu_index;
 
 static int16_t lastEncoderPos = 0;
 
@@ -61,6 +60,7 @@ void LCDMenu::replace_menu(menu_t nextMenu, bool beep)
     init_menu_switch(beep);
     menuStack[currentIndex] = nextMenu;
     lastEncoderPos = lcd_lib_encoder_pos = nextMenu.encoderPos;
+    lcd_lib_button_pressed = false;
     // menu initialization
     if (nextMenu.initMenuFunc)
     {
@@ -82,6 +82,7 @@ void LCDMenu::return_to_previous(bool beep)
         // switch back to previous menu
         --currentIndex;
         lastEncoderPos = lcd_lib_encoder_pos = menuStack[currentIndex].encoderPos;
+        lcd_lib_button_pressed = false;
         if (menuStack[currentIndex].initMenuFunc)
         {
             menuStack[currentIndex].initMenuFunc();
@@ -106,6 +107,7 @@ void LCDMenu::return_to_main(bool beep)
             --currentIndex;
         }
         lastEncoderPos = lcd_lib_encoder_pos = menuStack[currentIndex].encoderPos;
+        lcd_lib_button_pressed = false;
         if (menuStack[currentIndex].initMenuFunc)
         {
             menuStack[currentIndex].initMenuFunc();
@@ -130,6 +132,7 @@ void LCDMenu::reset_submenu()
     lastEncoderPos = lcd_lib_encoder_pos = menuStack[currentIndex].encoderPos;
     activeSubmenu = menu_t();
     selectedSubmenu = -1;
+    lcd_lib_button_pressed = false;
 }
 
 void LCDMenu::drawMenuBox(uint8_t left, uint8_t top, uint8_t width, uint8_t height, uint8_t flags)
@@ -149,6 +152,7 @@ void LCDMenu::drawMenuBox(uint8_t left, uint8_t top, uint8_t width, uint8_t heig
 void LCDMenu::drawMenuString(uint8_t left, uint8_t top, uint8_t width, uint8_t height, const char * str, uint8_t textAlign, uint8_t flags)
 {
     drawMenuBox(left, top, width, height, flags);
+    char buffer[32];
     const char* split = strchr(str, '|');
 
     uint8_t textX1;
@@ -158,8 +162,8 @@ void LCDMenu::drawMenuString(uint8_t left, uint8_t top, uint8_t width, uint8_t h
 
     if (split)
     {
-        strncpy(LCD_CACHE_FILENAME(1), str, split - str);
-        LCD_CACHE_FILENAME(1)[split - str] = '\0';
+        strncpy(buffer, str, split - str);
+        buffer[split - str] = '\0';
         ++split;
 
         // calculate text position
@@ -169,12 +173,12 @@ void LCDMenu::drawMenuString(uint8_t left, uint8_t top, uint8_t width, uint8_t h
         }
         else if (textAlign & ALIGN_RIGHT)
         {
-            textX1 = left + width - (LCD_CHAR_SPACING * strlen(LCD_CACHE_FILENAME(1)));
+            textX1 = left + width - (LCD_CHAR_SPACING * strlen(buffer));
             textX2 = left + width - (LCD_CHAR_SPACING * strlen(split));
         }
         else // if (textAlign & ALIGN_HCENTER)
         {
-            textX1 = left + width/2 - (LCD_CHAR_SPACING/2 * strlen(LCD_CACHE_FILENAME(1)));
+            textX1 = left + width/2 - (LCD_CHAR_SPACING/2 * strlen(buffer));
             textX2 = left + width/2 - (LCD_CHAR_SPACING/2 * strlen(split));
         }
 
@@ -196,10 +200,10 @@ void LCDMenu::drawMenuString(uint8_t left, uint8_t top, uint8_t width, uint8_t h
 
         if (flags & MENU_SELECTED)
         {
-            lcd_lib_clear_string(textX1, textY1, LCD_CACHE_FILENAME(1));
+            lcd_lib_clear_string(textX1, textY1, buffer);
             lcd_lib_clear_string(textX2, textY2, split);
         } else {
-            lcd_lib_draw_string(textX1, textY1, LCD_CACHE_FILENAME(1));
+            lcd_lib_draw_string(textX1, textY1, buffer);
             lcd_lib_draw_string(textX2, textY2, split);
         }
     }else{
@@ -230,8 +234,9 @@ void LCDMenu::drawMenuString(uint8_t left, uint8_t top, uint8_t width, uint8_t h
 
 void LCDMenu::drawMenuString_P(uint8_t left, uint8_t top, uint8_t width, uint8_t height, const char * str, uint8_t textAlign, uint8_t flags)
 {
-    strcpy_P(LCD_CACHE_FILENAME(0), str);
-    drawMenuString(left, top, width, height, LCD_CACHE_FILENAME(0), textAlign, flags);
+    char buffer[32];
+    strcpy_P(buffer, str);
+    drawMenuString(left, top, width, height, buffer, textAlign, flags);
 }
 
 void LCDMenu::process_submenu(menuItemCallback_t getMenuItem, uint8_t len)
@@ -345,5 +350,10 @@ void LCDMenu::reset_selection()
     lcd_lib_button_pressed = lcd_lib_button_down = false;
 }
 
+void LCDMenu::set_selection(int8_t index)
+{
+    lcd_lib_encoder_pos = MAIN_MENU_ITEM_POS(index);
+    lastEncoderPos = lcd_lib_encoder_pos-1;
+}
 
 #endif

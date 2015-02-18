@@ -846,7 +846,7 @@ static void homeaxis(int axis) {
         #endif
         break;
     }
-    if (endstop_pressed)
+    if (endstop_pressed && axis == Z_AXIS)
     {
         SERIAL_ERROR_START;
         SERIAL_ERRORLNPGM("Endstop still pressed after backing off. Endstop stuck?");
@@ -881,7 +881,9 @@ void process_commands()
   unsigned long codenum; //throw away variable
   char *starpos = NULL;
 
-  printing_state = PRINT_STATE_NORMAL;
+  if (printing_state != PRINT_STATE_RECOVER)
+    printing_state = PRINT_STATE_NORMAL;
+
   if(code_seen('G'))
   {
     switch((int)code_value())
@@ -908,6 +910,9 @@ void process_commands()
         return;
       }
     case 4: // G4 dwell
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
+
       LCD_MESSAGEPGM(MSG_DWELL);
       codenum = 0;
       if(code_seen('P')) codenum = code_value(); // milliseconds to wait
@@ -964,6 +969,9 @@ void process_commands()
       break;
       #endif //FWRETRACT
     case 28: //G28 Home all Axis one at a time
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
+
       printing_state = PRINT_STATE_HOMING;
       saved_feedrate = feedrate;
       saved_feedmultiply = feedmultiply;
@@ -1156,6 +1164,9 @@ void process_commands()
     case 0: // M0 - Unconditional stop - Wait for user button press on LCD
     case 1: // M1 - Conditional stop - Wait for user button press on LCD
     {
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
+
       printing_state = PRINT_STATE_WAIT_USER;
       LCD_MESSAGEPGM(MSG_USERWAIT);
       codenum = 0;
@@ -1188,6 +1199,9 @@ void process_commands()
     case 0: // M0 - Unconditional stop - Wait for user button press on LCD
     case 1: // M1 - Conditional stop - Wait for user button press on LCD
     {
+        if (printing_state == PRINT_STATE_RECOVER)
+          break;
+
         card.pause = true;
         while(card.pause)
         {
@@ -1200,6 +1214,8 @@ void process_commands()
     break;
 #endif
     case 17:
+        if (printing_state == PRINT_STATE_RECOVER)
+          break;
         LCD_MESSAGEPGM(MSG_NO_MOVE);
         enable_x();
         enable_y();
@@ -1211,39 +1227,54 @@ void process_commands()
 
 #ifdef SDSUPPORT
     case 20: // M20 - list SD card
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       SERIAL_PROTOCOLLNPGM(MSG_BEGIN_FILE_LIST);
       card.ls();
       SERIAL_PROTOCOLLNPGM(MSG_END_FILE_LIST);
       break;
     case 21: // M21 - init SD card
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
 
       card.initsd();
-
       break;
     case 22: //M22 - release SD card
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       card.release();
 
       break;
     case 23: //M23 - Select file
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       starpos = (strchr(strchr_pointer + 4,'*'));
       if(starpos!=NULL)
         *(starpos-1)='\0';
       card.openFile(strchr_pointer + 4,true);
       break;
     case 24: //M24 - Start SD print
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       card.startFileprint();
       starttime=millis();
       break;
     case 25: //M25 - Pause SD print
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       //card.pauseSDPrint();
       card.closefile();
       break;
     case 26: //M26 - Set SD index
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       if(card.isOk() && code_seen('S')) {
         card.setIndex(code_value_long());
       }
       break;
     case 27: //M27 - Get SD status
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       card.getStatus();
       break;
     case 28: //M28 - Start SD write
@@ -1260,6 +1291,8 @@ void process_commands()
       //card,saving = false;
       break;
     case 30: //M30 <filename> Delete File
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       if (card.isOk()){
         card.closefile();
         starpos = (strchr(strchr_pointer + 4,'*'));
@@ -1272,6 +1305,8 @@ void process_commands()
       }
       break;
     case 923: //M923 - Select file and start printing
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       starpos = (strchr(strchr_pointer + 4,'*'));
       if(starpos!=NULL)
         *(starpos-1)='\0';
@@ -1338,7 +1373,10 @@ void process_commands()
         break;
       }
       if (code_seen('S')) setTargetHotend(code_value(), tmp_extruder);
-      setWatch();
+      if (printing_state != PRINT_STATE_RECOVER)
+      {
+        setWatch();
+      }
       break;
     case 140: // M140 set bed temp
       if (code_seen('S')) setTargetBed(code_value());
@@ -1377,8 +1415,6 @@ void process_commands()
       if(setTargetedHotend(109)){
         break;
       }
-      printing_state = PRINT_STATE_HEATING;
-      LCD_MESSAGEPGM(MSG_HEATING);
       #ifdef AUTOTEMP
         autotemp_enabled=false;
       #endif
@@ -1392,6 +1428,11 @@ void process_commands()
           autotemp_enabled=true;
         }
       #endif
+      if (printing_state == PRINT_STATE_RECOVER)
+          break;
+
+      printing_state = PRINT_STATE_HEATING;
+      LCD_MESSAGEPGM(MSG_HEATING);
 
       setWatch();
       codenum = millis();
@@ -1498,6 +1539,8 @@ void process_commands()
       // PWM for HEATER_1_PIN
       #if defined(HEATER_1_PIN) && HEATER_1_PIN > -1
         case 126: //M126 valve open
+          if (printing_state == PRINT_STATE_RECOVER)
+            break;
           if (code_seen('S')){
              ValvePressure=constrain(code_value(),0,255);
           }
@@ -1506,6 +1549,8 @@ void process_commands()
           }
           break;
         case 127: //M127 valve closed
+          if (printing_state == PRINT_STATE_RECOVER)
+            break;
           ValvePressure = 0;
           break;
       #endif //HEATER_1_PIN
@@ -1513,6 +1558,8 @@ void process_commands()
       // PWM for HEATER_2_PIN
       #if defined(HEATER_2_PIN) && HEATER_2_PIN > -1
         case 128: //M128 valve open
+          if (printing_state == PRINT_STATE_RECOVER)
+            break;
           if (code_seen('S')){
              EtoPPressure=constrain(code_value(),0,255);
           }
@@ -1521,6 +1568,8 @@ void process_commands()
           }
           break;
         case 129: //M129 valve closed
+          if (printing_state == PRINT_STATE_RECOVER)
+            break;
           EtoPPressure = 0;
           break;
       #endif //HEATER_2_PIN
@@ -1552,6 +1601,8 @@ void process_commands()
       break;
     case 18: //compatibility
     case 84: // M84
+      if (printing_state == PRINT_STATE_RECOVER)
+        break;
       if(code_seen('S')){
         stepper_inactive_time = code_value() * 1000;
       }
@@ -1984,6 +2035,9 @@ void process_commands()
     #ifdef FILAMENTCHANGEENABLE
     case 600: //Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
     {
+        if (printing_state == PRINT_STATE_RECOVER)
+          break;
+
         float target[4];
         float lastpos[4];
         target[X_AXIS]=current_position[X_AXIS];
@@ -2110,6 +2164,9 @@ void process_commands()
     #ifdef ENABLE_ULTILCD2
     case 601: //M601 Pause in UltiLCD2, X[pos] Y[pos] Z[relative lift] L[later retract distance]
     {
+        if (printing_state == PRINT_STATE_RECOVER)
+          break;
+
         st_synchronize();
         float target[4];
         float lastpos[4];
@@ -2166,6 +2223,7 @@ void process_commands()
           lifetime_stats_tick();
         }
 
+        plan_set_e_position(current_position[E_AXIS]);
         //return to normal
         if(code_seen('L'))
         {
@@ -2615,21 +2673,31 @@ void prepare_move()
       destination[i] = current_position[i] + difference[i] * fraction;
     }
     calculate_delta(destination);
-    plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS],
-                     destination[E_AXIS], feedrate*feedmultiply/60/100.0,
-                     active_extruder);
+    if (printing_state != PRINT_STATE_RECOVER)
+    {
+      plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS],
+                       destination[E_AXIS], feedrate*feedmultiply/60/100.0,
+                       active_extruder);
+    }
   }
 #else
-  // Do not use feedmultiply for E or Z only moves
-  if( (current_position[X_AXIS] == destination [X_AXIS]) && (current_position[Y_AXIS] == destination [Y_AXIS])) {
+  if (printing_state != PRINT_STATE_RECOVER)
+  {
+    // Do not use feedmultiply for E or Z only moves
+    if( (current_position[X_AXIS] == destination [X_AXIS]) && (current_position[Y_AXIS] == destination [Y_AXIS])) {
       plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
-  }
-  else {
-    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate*feedmultiply/60/100.0, active_extruder);
+    }
+    else {
+      plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate*feedmultiply/60/100.0, active_extruder);
+    }
   }
 #endif
   for(int8_t i=0; i < NUM_AXIS; i++) {
     current_position[i] = destination[i];
+  }
+  if ((printing_state == PRINT_STATE_RECOVER) && (abs(current_position[Z_AXIS]-recover_height) < 0.01f))
+  {
+      recover_start_print();
   }
 }
 
@@ -2695,6 +2763,9 @@ void controllerFan()
 void manage_inactivity()
 {
   manage_led_timeout();
+
+  if(printing_state == PRINT_STATE_RECOVER)
+    previous_millis_cmd=millis();
 
   if( (millis() - previous_millis_cmd) >  max_inactive_time )
     if(max_inactive_time)
