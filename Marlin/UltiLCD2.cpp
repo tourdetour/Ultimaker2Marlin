@@ -30,6 +30,9 @@ float dsp_temperature_bed = 20.0;
 char lcd_status_message[LCD_CHARS_PER_LINE+1];
 
 //#define SPECIAL_STARTUP
+#define MILLIS_GLOW  (1000L / 25L)
+static unsigned long glow_millis;
+
 
 static void lcd_menu_startup();
 #ifdef SPECIAL_STARTUP
@@ -38,14 +41,10 @@ static void lcd_menu_special_startup();
 
 static void lcd_menu_breakout();
 
-//static void lcd_main_init()
-//{
-//    led_glow = led_glow_dir = 0;
-//    LCDMenu::reset_selection();
-//}
-
 void lcd_init()
 {
+    glow_millis = millis() + MILLIS_GLOW;
+    led_glow = led_glow_dir = 0;
     tinkergnome_init();
     lcd_lib_init();
     if (!lcd_material_verify_material_settings())
@@ -66,18 +65,25 @@ void lcd_init()
 
 void lcd_update()
 {
+    unsigned long m = millis();
+
+    //increase/decrease the glow counters
+    if (glow_millis < m)
+    {
+        glow_millis += MILLIS_GLOW;
+        if (led_glow_dir)
+        {
+            led_glow-=2;
+            if (led_glow == 0) led_glow_dir = 0;
+        }else{
+            led_glow+=2;
+            if (led_glow == 126) led_glow_dir = 1;
+        }
+    }
+
     if (!lcd_lib_update_ready()) return;
     lcd_lib_buttons_update();
     card.updateSDInserted();
-
-    if (led_glow_dir)
-    {
-        led_glow-=2;
-        if (led_glow == 0) led_glow_dir = 0;
-    }else{
-        led_glow+=2;
-        if (led_glow == 126) led_glow_dir = 1;
-    }
 
     if (IsStopped())
     {
@@ -115,7 +121,7 @@ void lcd_update()
         lcd_lib_draw_stringP(1, 50, PSTR("support@ultimaker.com"));
         LED_GLOW_ERROR();
         lcd_lib_update_screen();
-    }else if (millis() - lastSerialCommandTime < SERIAL_CONTROL_TIMEOUT)
+    }else if (m - lastSerialCommandTime < SERIAL_CONTROL_TIMEOUT)
     {
         if (!serialScreenShown)
         {
@@ -124,7 +130,7 @@ void lcd_update()
             serialScreenShown = true;
         }
         if (printing_state == PRINT_STATE_HEATING || printing_state == PRINT_STATE_HEATING_BED || printing_state == PRINT_STATE_HOMING)
-            lastSerialCommandTime = millis();
+            lastSerialCommandTime = m;
         lcd_lib_update_screen();
     }else{
         serialScreenShown = false;
@@ -168,7 +174,7 @@ void lcd_menu_startup()
         lcd_lib_draw_gfx(0, 22, ultimakerTextGfx);
     */
     }else{
-        led_glow--;
+        //led_glow--;
         //lcd_lib_draw_gfx(80, 0, ultimakerRobotGfx);
         //lcd_lib_clear_gfx(0, 22, ultimakerTextOutlineGfx);
         lcd_lib_draw_gfx(0, 22, ultimakerTextGfx);
@@ -319,7 +325,7 @@ void lcd_menu_main()
         if (led_glow > 200)
             menu.add_menu(menu_t(lcd_menu_breakout));
     }else{
-        led_glow = led_glow_dir = 0;
+        // led_glow = led_glow_dir = 0;
         menu.process_submenu(get_main_menuoption, 3);
     }
     for (uint8_t index=0; index<3; ++index)
