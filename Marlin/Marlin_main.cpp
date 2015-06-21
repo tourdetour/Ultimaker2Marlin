@@ -43,6 +43,7 @@
 #include "language.h"
 #include "pins_arduino.h"
 #include "tinkergnome.h"
+#include "machinesettings.h"
 
 #if NUM_SERVOS > 0
 #include "Servo.h"
@@ -204,6 +205,8 @@ uint8_t fanSpeedPercent=100;
 //  uint8_t has_saved_settings;
 //};
 //machinesettings machinesettings_tempsave[10];
+
+MachineSettings machinesettings;
 
 #ifdef SERVO_ENDSTOPS
   int servo_endstops[] = SERVO_ENDSTOPS;
@@ -881,7 +884,7 @@ void process_commands()
   unsigned long codenum; //throw away variable
   char *starpos = NULL;
 
-  if (printing_state != PRINT_STATE_RECOVER)
+  if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START))
     printing_state = PRINT_STATE_NORMAL;
 
   if(code_seen('G'))
@@ -971,8 +974,9 @@ void process_commands()
     case 28: //G28 Home all Axis one at a time
       if (printing_state == PRINT_STATE_RECOVER)
         break;
+      if (printing_state != PRINT_STATE_START)
+        printing_state = PRINT_STATE_HOMING;
 
-      printing_state = PRINT_STATE_HOMING;
       saved_feedrate = feedrate;
       saved_feedmultiply = feedmultiply;
       feedmultiply = 100;
@@ -2243,16 +2247,17 @@ void process_commands()
     }
     break;
 
-//    case 605: // M605 store current set values
-//    {
-//      uint8_t tmp_select;
-//      if (code_seen('S'))
-//      {
-//        tmp_select = code_value();
-//        if (tmp_select>9) tmp_select=9;
-//      }
-//      else
-//        tmp_select = 0;
+    case 605: // M605 store current set values
+    {
+      uint8_t tmp_select;
+      if (code_seen('S'))
+      {
+        tmp_select = code_value();
+        if (tmp_select>9) tmp_select=9;
+      }
+      else
+        tmp_select = 0;
+
 //      machinesettings_tempsave[tmp_select].feedmultiply = feedmultiply;
 //      machinesettings_tempsave[tmp_select].BedTemperature = target_temperature_bed;
 //      machinesettings_tempsave[tmp_select].fanSpeed = fanSpeed;
@@ -2274,19 +2279,26 @@ void process_commands()
 //      machinesettings_tempsave[tmp_select].max_z_jerk = max_z_jerk;
 //      machinesettings_tempsave[tmp_select].max_e_jerk = max_e_jerk;
 //      machinesettings_tempsave[tmp_select].has_saved_settings = 1;
-//    }
-//    break;
-//
-//    case 606: // M606 recall saved values
-//    {
-//      uint8_t tmp_select;
-//      if (code_seen('S'))
-//      {
-//        tmp_select = code_value();
-//        if (tmp_select>9) tmp_select=9;
-//      }
-//      else
-//        tmp_select = 0;
+
+        machinesettings.store(tmp_select);
+
+        SERIAL_ECHO_START;
+        SERIAL_ECHOPGM(MSG_FREE_MEMORY);
+        SERIAL_ECHOLN(freeMemory());
+      }
+    break;
+
+    case 606: // M606 recall saved values
+    {
+      uint8_t tmp_select;
+      if (code_seen('S'))
+      {
+        tmp_select = code_value();
+        if (tmp_select>9) tmp_select=9;
+      }
+      else
+        tmp_select = 0;
+
 //      if (machinesettings_tempsave[tmp_select].has_saved_settings > 0)
 //      {
 //        feedmultiply = machinesettings_tempsave[tmp_select].feedmultiply;
@@ -2310,8 +2322,13 @@ void process_commands()
 //        max_z_jerk = machinesettings_tempsave[tmp_select].max_z_jerk;
 //        max_e_jerk = machinesettings_tempsave[tmp_select].max_e_jerk;
 //      }
-//    }
-//    break;
+
+        machinesettings.recall(tmp_select);
+        SERIAL_ECHO_START;
+        SERIAL_ECHOPGM(MSG_FREE_MEMORY);
+        SERIAL_ECHOLN(freeMemory());
+    }
+    break;
     #endif//ENABLE_ULTILCD2
 
     case 907: // M907 Set digital trimpot motor current using axis codes.
@@ -2500,7 +2517,9 @@ void process_commands()
     SERIAL_ECHO(cmdbuffer[bufindr]);
     SERIAL_ECHOLNPGM("\"");
   }
-  printing_state = PRINT_STATE_NORMAL;
+
+  if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START))
+    printing_state = PRINT_STATE_NORMAL;
 
   ClearToSend();
 }
@@ -2673,7 +2692,11 @@ void prepare_move()
       destination[i] = current_position[i] + difference[i] * fraction;
     }
     calculate_delta(destination);
-    if (printing_state != PRINT_STATE_RECOVER)
+    if (card.sdprinting && (printing_state == PRINT_STATE_RECOVER) && (destination[Z_AXIS] >= recover_height-0.01f))
+    {
+      recover_start_print();
+    }
+    else if (printing_state != PRINT_STATE_RECOVER)
     {
       plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS],
                        destination[E_AXIS], feedrate*feedmultiply/60/100.0,
@@ -2681,7 +2704,14 @@ void prepare_move()
     }
   }
 #else
-  if (printing_state != PRINT_STATE_RECOVER)
+  if (card.sdprinting && (printing_state == PRINT_STATE_RECOVER) && (destination[Z_AXIS] >= recover_height-0.01f))
+  {
+      for(uint8_t i=0; i < NUM_AXIS; i++) {
+          recover_position[i] = destination[i];
+      }
+      recover_start_print();
+  }
+  else if (printing_state != PRINT_STATE_RECOVER)
   {
     // Do not use feedmultiply for E or Z only moves
     if( (current_position[X_AXIS] == destination [X_AXIS]) && (current_position[Y_AXIS] == destination [Y_AXIS])) {
@@ -2694,10 +2724,6 @@ void prepare_move()
 #endif
   for(int8_t i=0; i < NUM_AXIS; i++) {
     current_position[i] = destination[i];
-  }
-  if ((printing_state == PRINT_STATE_RECOVER) && (abs(current_position[Z_AXIS]-recover_height) < 0.01f))
-  {
-      recover_start_print();
   }
 }
 
