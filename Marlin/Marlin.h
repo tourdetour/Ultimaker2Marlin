@@ -234,6 +234,7 @@ extern uint8_t printing_state;
 #define PRINT_STATE_HEATING_BED 4
 #define PRINT_STATE_HOMING      5
 #define PRINT_STATE_RECOVER     6
+#define PRINT_STATE_START       7
 
 // Handling multiple extruders pins
 extern uint8_t active_extruder;
@@ -247,5 +248,9 @@ extern uint8_t active_extruder;
 #else
   # define ARRAY_BY_EXTRUDERS(v1, v2, v3) { v1 }
 #endif
+
+extern "C"{
+  int freeMemory();
+}
 
 #endif
