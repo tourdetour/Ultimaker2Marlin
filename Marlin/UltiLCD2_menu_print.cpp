@@ -735,9 +735,9 @@ void lcd_menu_print_ready()
         {
                 strcat_P(c, PSTR("h"));
         }
-        lcd_lib_draw_string_left(5, buffer);
+        lcd_lib_draw_string_center(5, buffer);
 
-        lcd_lib_draw_string_centerP(15, PSTR("Printer cooling down"));
+        lcd_lib_draw_string_centerP(16, PSTR("Printer cooling down"));
 
         int16_t progress = 124 - (current_temperature[0] - 60);
         if (progress < 0) progress = 0;
@@ -755,7 +755,7 @@ void lcd_menu_print_ready()
 #if TEMP_SENSOR_BED != 0
         int_to_string(dsp_temperature_bed, c, PSTR("C"));
 #endif
-        lcd_lib_draw_string_center(25, buffer);
+        lcd_lib_draw_string_center(26, buffer);
     }else{
         menu.replace_menu(menu_t(lcd_menu_print_ready_cooled_down), false);
     }
@@ -789,9 +789,9 @@ static void lcd_menu_print_ready_cooled_down()
     {
             strcat_P(c, PSTR("h"));
     }
-    lcd_lib_draw_string_left(5, buffer);
+    lcd_lib_draw_string_center(5, buffer);
 
-    lcd_lib_draw_string_centerP(15, PSTR("Print finished"));
+    lcd_lib_draw_string_centerP(17, PSTR("Print finished"));
     lcd_lib_draw_string_centerP(30, PSTR("You can remove"));
     lcd_lib_draw_string_centerP(40, PSTR("the print."));
 
