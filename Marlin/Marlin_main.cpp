@@ -663,8 +663,6 @@ void get_command()
     return;
   }
 
-_delay_ms(200);
-
   static uint32_t endOfLineFilePosition = 0;
   while( !card.eof()  && buflen < BUFSIZE) {
     int16_t n=card.get();
