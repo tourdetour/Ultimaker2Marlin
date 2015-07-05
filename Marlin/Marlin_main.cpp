@@ -2663,6 +2663,7 @@ void prepare_move()
       for(uint8_t i=0; i < NUM_AXIS; i++) {
           recover_position[i] = destination[i];
       }
+
       recover_start_print();
   }
   else if (printing_state != PRINT_STATE_RECOVER)
