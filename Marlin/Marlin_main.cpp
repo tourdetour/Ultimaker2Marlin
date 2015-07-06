@@ -653,7 +653,6 @@ void get_command()
   if (serial_count!=0)
   {
     if (millis() - lastSerialCommandTime < 5000)
- SERIAL_PROTOCOLLN("wait for serial command");
       return;
     serial_count = 0;
   }
