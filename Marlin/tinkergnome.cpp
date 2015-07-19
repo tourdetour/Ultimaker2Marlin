@@ -214,6 +214,14 @@ static char* float_to_string2(float f, char* temp_buffer, const char* p_postfix)
 void tinkergnome_init()
 {
     uint16_t version = GET_EXPERT_VERSION()+1;
+    if (version > 2)
+    {
+        heater_timeout = GET_HEATER_TIMEOUT();
+    }
+    else
+    {
+        heater_timeout = 3;
+    }
     if (version > 1)
     {
         pid_flags = GET_PID_FLAGS();
@@ -315,7 +323,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
 #endif
         else if (nr == menu_index++)
         {
-            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_retract_speed, 2);
+            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_retract_speed);
         }
         else if (nr == menu_index++)
         {
@@ -506,15 +514,12 @@ static void lcd_tune_value(uint16_t &value, uint16_t _min, uint16_t _max)
     value = iValue;
 }
 
-//static void lcd_tune_value(uint8_t &value, uint8_t _min, uint8_t _max)
-//{
-//    if (lcd_lib_encoder_pos / ENCODER_TICKS_PER_SCROLL_MENU_ITEM != 0)
-//    {
-//        lcd_lib_tick();
-//        value = constrain(value + (lcd_lib_encoder_pos / ENCODER_TICKS_PER_SCROLL_MENU_ITEM), _min, _max);
-//        lcd_lib_encoder_pos = 0;
-//    }
-//}
+void lcd_tune_value(uint8_t &value, uint8_t _min, uint8_t _max)
+{
+    int iValue = value;
+    lcd_tune_value(iValue, _min, _max);
+    value = iValue;
+}
 
 static bool lcd_tune_value(float &value, float _min, float _max, float _step)
 {
@@ -2817,8 +2822,11 @@ static void lcd_menu_tune_extrude()
 static void lcd_extrude_return()
 {
     set_extrude_min_temp(EXTRUDE_MINTEMP);
-    if (!card.sdprinting) target_temperature[active_extruder] = 0;
     menu.return_to_previous();
+    if (!card.sdprinting)
+    {
+        target_temperature[active_extruder] = 0;
+    }
 }
 
 static void lcd_extrude_temperature()
@@ -3078,6 +3086,12 @@ void lcd_extrude_quit_menu()
 
 void lcd_menu_expert_extrude()
 {
+    // reset heater timeout until target temperature is reached
+    if ((degHotend(active_extruder) < 100) || (degHotend(active_extruder) < (degTargetHotend(active_extruder) - 20)))
+    {
+        last_user_interaction = millis();
+    }
+
     lcd_basic_screen();
     lcd_lib_draw_hline(3, 124, 13);
 
@@ -3096,7 +3110,6 @@ void lcd_menu_expert_extrude()
     }
 
     lcd_lib_update_screen();
-
 }
 
 void recover_start_print()

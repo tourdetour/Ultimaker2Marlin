@@ -22,7 +22,8 @@ uint8_t lcd_cache[LCD_CACHE_SIZE];
 
 void lcd_menu_print_heatup();
 static void lcd_menu_print_printing();
-static void lcd_menu_print_error();
+static void lcd_menu_print_error_sd();
+static void lcd_menu_print_error_position();
 static void lcd_menu_print_classic_warning();
 static void lcd_menu_print_ready_cooled_down();
 static void lcd_menu_print_tune_retraction();
@@ -95,10 +96,15 @@ static void checkPrintFinished()
         abortPrint();
         recover_height = 0.0f;
         menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
+    }else if (position_error)
+    {
+        quickStop();
+        abortPrint();
+        menu.replace_menu(menu_t(lcd_menu_print_error_position, MAIN_MENU_ITEM_POS(0)));
     }else if (card.errorCode())
     {
         abortPrint();
-        menu.replace_menu(menu_t(lcd_menu_print_error, MAIN_MENU_ITEM_POS(0)));
+        menu.replace_menu(menu_t(lcd_menu_print_error_sd, MAIN_MENU_ITEM_POS(0)));
     }
 }
 
@@ -109,8 +115,6 @@ void doStartPrint()
 
     if (printing_state == PRINT_STATE_RECOVER)
     {
-//        enquecommand_P(PSTR("G28"));
-//        enquecommand_P(PSTR(HEATUP_POSITION_COMMAND));
         return;
     }
     else if (printing_state != PRINT_STATE_START)
@@ -125,6 +129,7 @@ void doStartPrint()
 	// since we are going to prime the nozzle, forget about any G10/G11 retractions that happened at end of previous print
 	retracted = false;
 	primed = false;
+	position_error = false;
 
     for(uint8_t e = 0; e<EXTRUDERS; e++)
     {
@@ -192,7 +197,7 @@ static void userStartPrint()
     }
     else
     {
-        // lcd_remove_menu();
+        recover_height = 0.0f;
         menu.add_menu(menu_t((ui_mode & UI_MODE_EXPERT) ? lcd_menu_printing_tg : lcd_menu_print_printing));
         doStartPrint();
     }
@@ -469,6 +474,7 @@ void lcd_menu_print_select()
                         }
                         else
                         {
+                            recover_height = 0.0f;
                             enquecommand_P(PSTR("G28"));
                             enquecommand_P(PSTR(HEATUP_POSITION_COMMAND));
                             if (ui_mode & UI_MODE_EXPERT)
@@ -644,7 +650,7 @@ static void lcd_menu_print_printing()
     }
 }
 
-static void lcd_menu_print_error()
+static void lcd_menu_print_error_sd()
 {
     LED_GLOW_ERROR();
     lcd_info_screen(lcd_return_to_main_menu, NULL, PSTR("RETURN TO MAIN"));
@@ -656,6 +662,18 @@ static void lcd_menu_print_error()
     strcpy_P(buffer, PSTR("Code:"));
     int_to_string(card.errorCode(), buffer+5);
     lcd_lib_draw_string_center(40, buffer);
+
+    lcd_lib_update_screen();
+}
+
+static void lcd_menu_print_error_position()
+{
+    LED_GLOW_ERROR();
+    lcd_info_screen(lcd_menu_main, NULL, PSTR("RETURN TO MAIN"));
+
+    lcd_lib_draw_string_centerP(15, PSTR("ERROR:"));
+    lcd_lib_draw_string_centerP(25, PSTR("Tried printing out"));
+    lcd_lib_draw_string_centerP(35, PSTR("of printing area"));
 
     lcd_lib_update_screen();
 }
@@ -742,8 +760,10 @@ void lcd_menu_print_ready()
         int_to_string(dsp_temperature_bed, c, PSTR("C"));
 #endif
         lcd_lib_draw_string_center(26, buffer);
-    }else{
-        menu.replace_menu(menu_t(lcd_menu_print_ready_cooled_down), false);
+    }
+    else
+    {
+        menu.replace_menu(menu_t(lcd_menu_print_ready_cooled_down, MAIN_MENU_ITEM_POS(0)), false);
     }
     lcd_lib_update_screen();
 }
@@ -1052,6 +1072,7 @@ void lcd_print_pause()
             char buffer[32];
             sprintf_P(buffer, PSTR("M601 X5 Y5 Z%i L%i"), zdiff, END_OF_PRINT_RETRACTION);
             enquecommand(buffer);
+
             primed = false;
         }
         else if (!pauseRequested)
@@ -1078,21 +1099,34 @@ void lcd_print_abort()
     menu.add_menu(menu_t(lcd_menu_print_abort, MAIN_MENU_ITEM_POS(1)));
 }
 
+static void lcd_menu_print_resume_ready()
+{
+    menu.return_to_previous();
+    primed = true;
+    pauseRequested = false;
+    card.pause = false;
+}
+
 static void lcd_print_resume()
 {
-    card.pause = false;
-    pauseRequested = false;
     if (card.sdprinting)
     {
-        primed = true;
+        menu.replace_menu(menu_t(lcd_menu_print_resume_ready));
+        check_preheat();
     }
-    menu.return_to_previous();
+    else
+    {
+        menu.return_to_previous();
+    }
 }
 
 static void lcd_print_change_material()
 {
-    menu.add_menu(menu_t(lcd_change_to_menu_change_material_return), false);
-    menu.add_menu(menu_t(lcd_menu_change_material_preheat));
+    if (!movesplanned())
+    {
+        menu.add_menu(menu_t(lcd_change_to_menu_change_material_return), false);
+        menu.add_menu(menu_t(lcd_menu_change_material_preheat));
+    }
 }
 
 static void lcd_show_pause_menu()
@@ -1341,6 +1375,11 @@ void lcd_menu_print_resume()
     {
         lcd_print_pause();
     }
+    if (movesplanned())
+    {
+        last_user_interaction = millis();
+    }
+
     lcd_lib_clear();
     lcd_lib_draw_vline(64, 5, 46);
     lcd_lib_draw_hline(3, 124, 50);
