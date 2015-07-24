@@ -2225,7 +2225,12 @@ static void lcd_move_axis(AxisEnum axis, float diff)
         }
         if (movingSpeed != 0)
         {
-            movingSpeed = constrain(movingSpeed, -15, 15);
+            movingSpeed = constrain(movingSpeed, -20, 20);
+            if (abs(movingSpeed) < 6)
+            {
+                movingSpeed = 6*((movingSpeed > 0) - (movingSpeed < 0));
+            }
+
             uint8_t steps = min(abs(movingSpeed)*2, (BLOCK_BUFFER_SIZE - movesplanned()) >> 1);
             for (uint8_t i = 0; i < steps; ++i)
             {
