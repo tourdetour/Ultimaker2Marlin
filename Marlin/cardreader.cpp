@@ -105,10 +105,15 @@ void  CardReader::lsDive(SdFile &parent, SdFile** parents, uint8_t dirDepth)
       createFilename(filename,p);
       if(lsAction==LS_SerialPrint)
       {
+        char lfilename[13];
         SERIAL_PROTOCOLPGM("/");
         for (uint8_t d=0; d<dirDepth; ++d) {
-          if (parents[d]->printName()) {
+          if (parents[d]->getFilename(lfilename)) {
+            SERIAL_PROTOCOL(lfilename);
             SERIAL_PROTOCOLPGM("/");
+          }
+          else {
+            break;
           }
         }
         SERIAL_PROTOCOLLN(filename);
@@ -130,9 +135,6 @@ void  CardReader::lsDive(SdFile &parent, SdFile** parents, uint8_t dirDepth)
 void CardReader::ls()
 {
   lsAction=LS_SerialPrint;
-  if(lsAction==LS_Count)
-  nrFiles=0;
-
   root.rewind();
   SdFile* lsParents[MAX_DIR_DEPTH];
   memset(lsParents, 0, sizeof(lsParents));
