@@ -153,6 +153,12 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("Retraction settings"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Motion settings"));
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+// @NEB
+    else if (nr == index++)
+        strcpy_P(buffer, PSTR("Filament sensor"));
+// @NEB
+#endif
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Version"));
     else if (nr == index++)
@@ -228,7 +234,22 @@ static void lcd_preferences_details(uint8_t nr)
         }
     }
 #endif
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+// @NEB filament sensor menu details
     else if (nr == 9+BED_MENU_OFFSET)
+    {
+        if (expert_flags & FLAG_FILAMENT_SENSOR)
+        {
+            strcpy_P(buffer, PSTR("Sensor Mode"));
+        }
+        else
+        {
+            strcpy_P(buffer, PSTR("No Sensor"));
+        }
+    }
+#endif
+    // @NEB added FILAMENT_SENSOR_MENU_OFFSET
+    else if (nr == 9+BED_MENU_OFFSET+FILAMENT_SENSOR_MENU_OFFSET)
     {
         strcpy_P(buffer, PSTR(STRING_CONFIG_H_AUTHOR));
     }
@@ -712,9 +733,9 @@ static void lcd_menu_maintenance_led()
 
 // -----------------------------------------
 
-static void lcd_pidflags_store(uint8_t flags)
+static void store_flags(uint8_t flags)
 {
-    SET_PID_FLAGS(flags);
+    SET_FLAGS(flags);
     uint16_t version = GET_EXPERT_VERSION()+1;
     if (version < 2)
     {
@@ -753,6 +774,42 @@ static void lcd_uimode_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }
+
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+// @NEB new filament sensor menu item
+static void lcd_fillament_sensor_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
+{
+    char buffer[20] = {' '};
+
+    if (nr == 0)
+    {
+        strcpy_P(buffer, PSTR("< RETURN"));
+    }
+    else if (nr == 1)
+    {
+        if (!(expert_flags & FLAG_FILAMENT_SENSOR))
+        {
+            strcpy_P(buffer, PSTR(">"));
+        }
+        strcpy_P(buffer+1, PSTR("No Sensor"));
+    }
+    else if (nr == 2)
+    {
+        if (expert_flags & FLAG_FILAMENT_SENSOR)
+        {
+            strcpy_P(buffer, PSTR(">"));
+        }
+        strcpy_P(buffer+1, PSTR("Sensor Mode"));
+    }
+    else
+    {
+        strcpy_P(buffer+1, PSTR("???"));
+    }
+
+    lcd_draw_scroll_entry(offsetY, buffer, flags);
+}
+// @NEB
+#endif
 
 static void lcd_clicksound_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
@@ -840,6 +897,32 @@ static void lcd_menu_uimode()
     }
 }
 
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+// @NEB new filament sensor menu incl. storage of sensor setting
+static void lcd_menu_filament_sensor()
+{
+    lcd_scroll_menu(PSTR("Filament sensor"), 3, lcd_fillament_sensor_item, NULL);
+    if (lcd_lib_button_pressed)
+    {
+        if (IS_SELECTED_SCROLL(1))
+        {
+            expert_flags &= ~FLAG_FILAMENT_SENSOR;
+        }
+        else if (IS_SELECTED_SCROLL(2))
+        {
+            expert_flags |= FLAG_FILAMENT_SENSOR;
+        }
+        if (expert_flags != GET_FLAGS())
+        {
+            store_flags(expert_flags);
+            setupFilamentSensor();
+        }
+        menu.return_to_previous();
+    }
+}
+// @NEB
+#endif
+
 static void lcd_menu_clicksound()
 {
     lcd_scroll_menu(PSTR("Click sound"), 4, lcd_clicksound_item, NULL);
@@ -904,16 +987,16 @@ static void lcd_menu_buildplate_pid()
         {
             if (!pidTempBed())
             {
-                pid_flags |= PID_FLAG_BED;
-                lcd_pidflags_store(pid_flags);
+                expert_flags |= FLAG_PID_BED;
+                store_flags(expert_flags);
             }
         }
         else if (IS_SELECTED_SCROLL(2))
         {
             if (pidTempBed())
             {
-                pid_flags &= ~PID_FLAG_BED;
-                lcd_pidflags_store(pid_flags);
+                expert_flags &= ~FLAG_PID_BED;
+                store_flags(expert_flags);
             }
         }
         menu.return_to_previous();
@@ -963,7 +1046,8 @@ static void lcd_menu_heater_timeout()
 
 static void lcd_menu_preferences()
 {
-    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 12, lcd_preferences_item, lcd_preferences_details);
+    // @NEB added FILAMENT_SENSOR_MENU_OFFSET
+    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + FILAMENT_SENSOR_MENU_OFFSET + 12, lcd_preferences_item, lcd_preferences_details);
     if (lcd_lib_button_pressed)
     {
         uint8_t index = 0;
@@ -989,6 +1073,12 @@ static void lcd_menu_preferences()
             menu.add_menu(menu_t(lcd_menu_maintenance_retraction, SCROLL_MENU_ITEM_POS(0)));
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_maintenance_motion, SCROLL_MENU_ITEM_POS(0)));
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+        // @NEB added new menu item entry
+        else if (IS_SELECTED_SCROLL(index++))
+            menu.add_menu(menu_t(lcd_menu_filament_sensor, SCROLL_MENU_ITEM_POS(0)));
+        // @NEB
+#endif
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_advanced_version, SCROLL_MENU_ITEM_POS(0)));
         else if (IS_SELECTED_SCROLL(index++))

@@ -659,11 +659,11 @@
 #endif
 
 
-#define X_STEP_PIN		     49
-#define X_DIR_PIN			     13
-#define X_ENABLE_PIN		   48
-#define X_MIN_PIN			     35
-#define X_MAX_PIN			     -1 //34
+#define X_STEP_PIN         49
+#define X_DIR_PIN          13
+#define X_ENABLE_PIN       48
+#define X_MIN_PIN          35
+#define X_MAX_PIN          -1 //34
 
 #define Y_STEP_PIN         11
 #define Y_DIR_PIN          9
@@ -695,7 +695,7 @@
 #define FAN_PIN            16 //5V PWM
 
 #define PS_ON_PIN          10 //Set to -1 if using a manual switch on the PWRSW Connector
-#define SLEEP_WAKE_PIN		 26 //This feature still needs work
+#define SLEEP_WAKE_PIN     26 //This feature still needs work
 
 #define HEATER_0_PIN       45	//12V PWM1
 #define HEATER_1_PIN       46	//12V PWM2
@@ -706,7 +706,7 @@
 #define TEMP_2_PIN         1 	//ANALOG NUMBERING
 #define TEMP_BED_PIN       0	//ANALOG NUMBERING
 
-#define BEEPER 		         36
+#define BEEPER          36
 
 #define KILL_PIN           -1
 

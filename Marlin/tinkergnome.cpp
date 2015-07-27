@@ -48,7 +48,7 @@ uint16_t lcd_timeout = LED_DIM_TIME;
 uint8_t lcd_contrast = 0xDF;
 uint8_t lcd_sleep_contrast = 0;
 uint8_t led_sleep_glow = 0;
-uint8_t pid_flags = PID_FLAG_NOZZLE | PID_FLAG_BED;
+uint8_t expert_flags = FLAG_PID_NOZZLE | FLAG_PID_BED;
 
 static uint16_t led_timeout = LED_DIM_TIME;
 static uint8_t led_sleep_brightness = 0;
@@ -227,11 +227,11 @@ void tinkergnome_init()
     }
     if (version > 1)
     {
-        pid_flags = GET_PID_FLAGS();
+        expert_flags = GET_FLAGS();
     }
     else
     {
-        pid_flags = PID_FLAG_NOZZLE | PID_FLAG_BED;
+        expert_flags = FLAG_PID_NOZZLE | FLAG_PID_BED;
     }
     if (version > 0)
     {
@@ -3138,5 +3138,57 @@ void recover_start_print()
     menu.add_menu(menu_t((ui_mode & UI_MODE_EXPERT) ? lcd_menu_print_heatup_tg : lcd_menu_print_heatup));
 //    }
 }
+
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+// @NEB filament outage handling
+static void lcd_menu_filament_outage()
+{
+    lcd_info_screen(lcd_change_to_previous_menu, NULL, PSTR("CONTINUE"));
+
+    lcd_lib_draw_string_centerP(10, PSTR("Filament outage"));
+    lcd_lib_draw_string_centerP(20, PSTR("detected. Print"));
+    lcd_lib_draw_string_centerP(30, PSTR("paused. Please"));
+    lcd_lib_draw_string_centerP(40, PSTR("change filament."));
+
+    lcd_lib_update_screen();
+}
+
+void setupFilamentSensor()
+{
+    if(expert_flags & FLAG_FILAMENT_SENSOR)
+    {
+        SET_INPUT(FILAMENT_SENSOR_PIN);
+    }
+    else
+    {
+        SET_OUTPUT(FILAMENT_SENSOR_PIN);
+    }
+}
+
+void checkFilamentSensor()
+{
+    // filament outage sensor will only be checked if
+    //      filament outage sensor is activated
+    //      printer is printing
+    //      printing is not paused
+
+    // filament sensor pin is high (pull-up resistor)
+    // TODO: inverted for testing => Normal: READ(FILAMENT_SENSOR_PIN) without inversion !!!!!
+    if((expert_flags & FLAG_FILAMENT_SENSOR) && card.sdprinting && !card.pause && !READ(FILAMENT_SENSOR_PIN))
+    {
+        // pause print
+        lcd_print_pause();
+
+        // serial echo message
+        SERIAL_ECHOLNPGM("echo:Filament Outage detected");
+
+        // add menu to stack
+        menu.add_menu(menu_t(lcd_menu_filament_outage, MAIN_MENU_ITEM_POS(0)));
+
+    }
+}
+
+// @NEB
+#endif
 
 #endif//ENABLE_ULTILCD2

@@ -109,6 +109,14 @@ extern uint8_t minProgress;
 #define BED_MENU_OFFSET 0
 #endif
 
+// @NEB
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+#define FILAMENT_SENSOR_MENU_OFFSET 1
+#else
+#define FILAMENT_SENSOR_MENU_OFFSET 0
+#endif
+// @NEB
+
 #define BOTTOM_MENU_YPOS 54
 
 #endif//ULTI_LCD2_HI_LIB_H

@@ -482,6 +482,12 @@ void setup()
   #if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
     SET_OUTPUT(CONTROLLERFAN_PIN); //Set pin used for driver cooling fan
   #endif
+
+  #if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+    // @NEB setup out of filament sensor
+    setupFilamentSensor();
+    // @NEB
+  #endif
 }
 
 void loop()
@@ -533,6 +539,12 @@ void loop()
   checkHitEndstops();
   lcd_update();
   lifetime_stats_tick();
+
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+  // @NEB check out of filament sensor
+  checkFilamentSensor();
+  // @NEB
+#endif
 }
 
 void get_command()

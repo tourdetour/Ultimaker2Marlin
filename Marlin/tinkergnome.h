@@ -9,7 +9,7 @@
 #define EEPROM_SLEEP_BRIGHTNESS_OFFSET 0x409
 #define EEPROM_SLEEP_CONTRAST_OFFSET 0x40A
 #define EEPROM_SLEEP_GLOW_OFFSET 0x40B
-#define EEPROM_PID_FLAGS 0x40C
+#define EEPROM_FLAGS 0x40C
 #define EEPROM_HEATER_TIMEOUT 0x40D
 
 #define GET_UI_MODE() (eeprom_read_byte((const uint8_t*)EEPROM_UI_MODE_OFFSET))
@@ -28,8 +28,8 @@
 #define SET_SLEEP_CONTRAST(n) do { eeprom_write_byte((uint8_t*)EEPROM_SLEEP_CONTRAST_OFFSET, n); } while(0)
 #define GET_SLEEP_GLOW() (eeprom_read_byte((const uint8_t*)EEPROM_SLEEP_GLOW_OFFSET))
 #define SET_SLEEP_GLOW(n) do { eeprom_write_byte((uint8_t*)EEPROM_SLEEP_GLOW_OFFSET, n); } while(0)
-#define GET_PID_FLAGS() (eeprom_read_byte((const uint8_t*)EEPROM_PID_FLAGS))
-#define SET_PID_FLAGS(n) do { eeprom_write_byte((uint8_t*)EEPROM_PID_FLAGS, n); } while(0)
+#define GET_FLAGS() (eeprom_read_byte((const uint8_t*)EEPROM_FLAGS))
+#define SET_FLAGS(n) do { eeprom_write_byte((uint8_t*)EEPROM_FLAGS, n); } while(0)
 #define GET_HEATER_TIMEOUT() (eeprom_read_byte((const uint8_t*)EEPROM_HEATER_TIMEOUT))
 #define SET_HEATER_TIMEOUT(n) do { eeprom_write_byte((uint8_t*)EEPROM_HEATER_TIMEOUT, n); } while(0)
 
@@ -41,15 +41,16 @@
 #define UI_BEEP_OFF      64
 
 // PID control flags
-#define PID_FLAG_NOZZLE 1
-#define PID_FLAG_BED 2
+#define FLAG_PID_NOZZLE 1
+#define FLAG_PID_BED 2
+#define FLAG_FILAMENT_SENSOR 4
 
 extern uint8_t ui_mode;
 extern uint16_t lcd_timeout;
 extern uint8_t lcd_contrast;
 extern uint8_t led_sleep_glow;
 extern uint8_t lcd_sleep_contrast;
-extern uint8_t pid_flags;
+extern uint8_t expert_flags;
 
 extern const uint8_t standbyGfx[];
 extern const uint8_t startGfx[];
@@ -80,12 +81,18 @@ void lcd_menu_expert_recover();
 void reset_printing_state();
 
 bool lcd_tune_byte(uint8_t &value, uint8_t _min, uint8_t _max);
-void lcd_tune_value(uint8_t &value, uint8_t _min, uint8_t _max);
-void lcd_lib_draw_bargraph( uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, float value );
+void lcd_tune_value(uint8_t &value, uint8_t _min, uint8_t _max);void lcd_lib_draw_bargraph( uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, float value );
 
 char* int_to_time_string_tg(unsigned long i, char* temp_buffer);
 
-inline bool pidTempBed() { return (pid_flags & PID_FLAG_BED); }
+inline bool pidTempBed() { return (expert_flags & FLAG_PID_BED); }
+
+#if defined(FILAMENT_SENSOR_PIN) && (FILAMENT_SENSOR_PIN > -1)
+  // @NEB filament outage handling
+  void setupFilamentSensor();
+  void checkFilamentSensor();
+  // @NEB
+#endif
 
 #endif//ULTI_LCD2_MENU_TINKERGNOME_H
 
