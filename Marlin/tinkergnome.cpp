@@ -2189,22 +2189,22 @@ static const menu_t & get_axislimit_menuoption(uint8_t nr, menu_t &opt)
     else if (nr == index++)
     {
         // x min
-        opt.setData(MENU_INPLACE_EDIT, lcd_limit_xmin, 4);
+        opt.setData(MENU_INPLACE_EDIT, lcd_limit_xmin, 2);
     }
     else if (nr == index++)
     {
         // x max
-        opt.setData(MENU_INPLACE_EDIT, lcd_limit_xmax, 4);
+        opt.setData(MENU_INPLACE_EDIT, lcd_limit_xmax, 2);
     }
     else if (nr == index++)
     {
         // y min
-        opt.setData(MENU_INPLACE_EDIT, lcd_limit_ymin, 4);
+        opt.setData(MENU_INPLACE_EDIT, lcd_limit_ymin, 2);
     }
     else if (nr == index++)
     {
         // y max
-        opt.setData(MENU_INPLACE_EDIT, lcd_limit_ymax, 4);
+        opt.setData(MENU_INPLACE_EDIT, lcd_limit_ymax, 2);
     }
 //    else if (nr == index++)
 //    {
@@ -2214,7 +2214,7 @@ static const menu_t & get_axislimit_menuoption(uint8_t nr, menu_t &opt)
     else if (nr == index++)
     {
         // z max
-        opt.setData(MENU_INPLACE_EDIT, lcd_limit_zmax, 4);
+        opt.setData(MENU_INPLACE_EDIT, lcd_limit_zmax, 2);
     }
     return opt;
 }
