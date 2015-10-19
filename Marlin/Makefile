@@ -182,7 +182,7 @@ else
 HARDWARE_DIR = ../ArduinoAddons/Arduino_0.xx
 endif
 endif
-HARDWARE_SRC = $(HARDWARE_DIR)/$(HARDWARE_VARIANT)/cores/arduino
+HARDWARE_SRC = $(HARDWARE_DIR)/$(HARDWARE_VARIANT)/avr/cores/arduino
 
 TARGET = $(notdir $(CURDIR))
 
@@ -202,7 +202,7 @@ VPATH += $(HARDWARE_DIR)/libraries/SPI
 endif
 ifeq ($(HARDWARE_VARIANT), arduino)
 HARDWARE_SUB_VARIANT ?= mega
-VPATH += $(ARDUINO_INSTALL_DIR)/hardware/arduino/variants/$(HARDWARE_SUB_VARIANT)
+VPATH += $(ARDUINO_INSTALL_DIR)/hardware/arduino/avr/variants/$(HARDWARE_SUB_VARIANT)
 else
 HARDWARE_SUB_VARIANT ?= standard
 VPATH += $(HARDWARE_DIR)/$(HARDWARE_VARIANT)/variants/$(HARDWARE_SUB_VARIANT)
@@ -220,7 +220,8 @@ CXXSRC = WMath.cpp WString.cpp Print.cpp Marlin_main.cpp	\
 CXXSRC += UltiLCD2.cpp UltiLCD2_gfx.cpp UltiLCD2_hi_lib.cpp UltiLCD2_low_lib.cpp \
 	UltiLCD2_menu_first_run.cpp UltiLCD2_menu_maintenance.cpp UltiLCD2_menu_material.cpp \
 	UltiLCD2_menu_print.cpp lifetime_stats.cpp UltiLCD2_menu_main.cpp
-CXXSRC += UltiLCD2_menu_utils.cpp tinkergnome.cpp machinesettings.cpp new.cpp
+CXXSRC += UltiLCD2_menu_utils.cpp UltiLCD2_menu_prefs.cpp tinkergnome.cpp  \
+	machinesettings.cpp filament_sensor.cpp new.cpp
 
 #Check for Arduino 1.0.0 or higher and use the correct sourcefiles for that version
 ifeq ($(shell [ $(ARDUINO_VERSION) -ge 100 ] && echo true), true)
@@ -254,6 +255,9 @@ NM = $(AVR_TOOLS_PATH)avr-nm
 AVRDUDE = avrdude
 REMOVE = rm -f
 MV = mv -f
+
+# $(info $$CC is [${CC}])
+# $(info $$CXX is [${CXX}])
 
 # Place -D or -U options here
 CDEFS    = -DF_CPU=$(F_CPU) ${addprefix -D , $(DEFINES)}
