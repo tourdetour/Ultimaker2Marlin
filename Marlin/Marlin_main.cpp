@@ -44,6 +44,8 @@
 #include "pins_arduino.h"
 #include "tinkergnome.h"
 #include "machinesettings.h"
+#include "filament_sensor.h"
+#include "preferences.h"
 
 #if NUM_SERVOS > 0
 #include "Servo.h"
@@ -186,26 +188,6 @@ uint8_t active_extruder = 0;
 uint8_t fanSpeed=0;
 uint8_t fanSpeedPercent=100;
 
-//struct machinesettings {
-//  machinesettings() : has_saved_settings(0) {}
-//  int feedmultiply;
-//  int HotendTemperature[EXTRUDERS];
-//  int BedTemperature;
-//  uint8_t fanSpeed;
-//  int extrudemultiply[EXTRUDERS];
-//  long max_acceleration_units_per_sq_second[NUM_AXIS];
-//  float max_feedrate[NUM_AXIS];
-//  float acceleration;
-//  float minimumfeedrate;
-//  float mintravelfeedrate;
-//  long minsegmenttime;
-//  float max_xy_jerk;
-//  float max_z_jerk;
-//  float max_e_jerk;
-//  uint8_t has_saved_settings;
-//};
-//machinesettings machinesettings_tempsave[10];
-
 MachineSettings machinesettings;
 
 #ifdef SERVO_ENDSTOPS
@@ -332,8 +314,8 @@ void enquecommand(const char *cmd)
     SERIAL_ECHOPGM("enqueing \"");
     SERIAL_ECHO(cmdbuffer[bufindw]);
     SERIAL_ECHOLNPGM("\"");
-    bufindw= (bufindw + 1)%BUFSIZE;
-    buflen += 1;
+    bufindw = (bufindw + 1)%BUFSIZE;
+    ++buflen;
   }
 }
 
@@ -347,8 +329,8 @@ void enquecommand_P(const char *cmd)
     SERIAL_ECHOPGM("enqueing \"");
     SERIAL_ECHO(cmdbuffer[bufindw]);
     SERIAL_ECHOLNPGM("\"");
-    bufindw= (bufindw + 1)%BUFSIZE;
-    buflen += 1;
+    bufindw = (bufindw + 1)%BUFSIZE;
+    ++buflen;
   }
 }
 
@@ -472,6 +454,7 @@ void setup()
   lifetime_stats_init();
   tp_init();    // Initialize temperature loop
   plan_init();  // Initialize planner;
+  filament_sensor_init(); // Initialize filament sensor
   watchdog_init();
   st_init();    // Initialize stepper, this enables interrupts!
   setup_photpin();
@@ -2457,6 +2440,10 @@ void process_commands()
     else {
       #if EXTRUDERS > 1
       boolean make_move = false;
+      if (swapExtruders() && (tmp_extruder < 2))
+      {
+        tmp_extruder ^= 0x01;
+      }
       #endif
       if(code_seen('F')) {
         #if EXTRUDERS > 1
@@ -2469,6 +2456,9 @@ void process_commands()
       }
       #if EXTRUDERS > 1
       if(tmp_extruder != active_extruder) {
+        // finish moves
+        st_synchronize();
+
         // Save current position to return to after applying extruder offset
         memcpy(destination, current_position, sizeof(destination));
         // Offset extruder (only by XY)
@@ -2777,6 +2767,7 @@ void controllerFan()
 
 void manage_inactivity()
 {
+  checkFilamentSensor();
   manage_led_timeout();
 
   if(printing_state == PRINT_STATE_RECOVER)
@@ -2944,6 +2935,12 @@ bool setTargetedHotend(int code){
   tmp_extruder = active_extruder;
   if(code_seen('T')) {
     tmp_extruder = code_value();
+    #if EXTRUDERS > 1
+    if (swapExtruders() && (tmp_extruder < 2))
+    {
+      tmp_extruder ^= 0x01;
+    }
+    #endif // EXTRUDERS
     if(tmp_extruder >= EXTRUDERS) {
       SERIAL_ECHO_START;
       switch(code){

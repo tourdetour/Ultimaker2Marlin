@@ -8,7 +8,7 @@
 #############################
 
 ##Which version name are we appending to the final archive
-export BUILD_NAME=15.09
+export BUILD_NAME=15.10
 
 #############################
 # Support functions
@@ -71,6 +71,7 @@ else
 	MAKE=make
 fi
 
+
 # Change working directory to the directory the script is in
 # http://stackoverflow.com/a/246128
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -103,19 +104,20 @@ elif [ -d "/Applications/Arduino.app/Contents/Resources/Java" ]; then
 	ARDUINO_VERSION=105
 elif [ -d "C:/Arduino" ]; then
 	ARDUINO_PATH=C:/Arduino
-	ARDUINO_VERSION=106
+	ARDUINO_VERSION=165
 else
 	ARDUINO_PATH=/usr/share/arduino
 	ARDUINO_VERSION=105
 fi
 
+
 #Build the Ultimaker2 firmwares.
 # gitClone https://github.com/TinkerGnome/Ultimaker2Marlin.git _Ultimaker2Marlin
 # cd _Ultimaker2Marlin/Marlin
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker ${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1" clean
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker ${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1 FILAMENT_SENSOR_PIN=30" clean
 sleep 2
 mkdir _Ultimaker2go
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker ${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker ${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1 FILAMENT_SENSOR_PIN=30"
 # cd -
 
 cp _Ultimaker2go/Marlin.hex resources/firmware/TinkerGnome-MarlinUltimaker2go-${BUILD_NAME}.hex
