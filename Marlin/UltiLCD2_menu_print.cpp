@@ -715,6 +715,39 @@ static void lcd_menu_print_ready_cooled_down()
     lcd_lib_update_screen();
 }
 
+#ifdef BABYSTEPPING
+static void lcd_menu_babystepping(uint8_t axis)
+{
+    lcd_lib_clear();
+
+    char buffer[16];
+    strcpy_P(buffer, PSTR("Babystep "));
+    buffer[9] = axis_codes[axis];
+    buffer[10] = '\0';
+
+    lcd_lib_draw_string_center(20, buffer);
+    lcd_lib_draw_string_centerP(40, PSTR("Rotate to move axis"));
+    lcd_lib_draw_string_centerP(50, PSTR("Click to return"));
+    lcd_lib_update_screen();
+
+    int diff = lcd_lib_encoder_pos*axis_steps_per_unit[axis]/200;
+    if (diff)
+    {
+        babystepsTodo[axis] += diff;
+        lcd_lib_encoder_pos = 0;
+    }
+
+    if (lcd_lib_button_pressed)
+        lcd_change_to_menu(previousMenu, previousEncoderPos);
+}
+
+static void lcd_menu_babystep_x() { lcd_menu_babystepping(X_AXIS); }
+static void lcd_menu_babystep_y() { lcd_menu_babystepping(Y_AXIS); }
+static void lcd_menu_babystep_z() { lcd_menu_babystepping(Z_AXIS); }
+
+#endif // BABYSTEPPING
+
+
 static char* tune_item_callback(uint8_t nr)
 {
     char* c = card.longFilename;
@@ -746,6 +779,14 @@ static char* tune_item_callback(uint8_t nr)
         strcpy_P(c, PSTR("Retraction"));
     else if (nr == 5 + BED_MENU_OFFSET + EXTRUDERS * 2)
         strcpy_P(c, PSTR("LED Brightness"));
+#ifdef BABYSTEPPING
+    else if (nr == 6 + BED_MENU_OFFSET + EXTRUDERS * 2)
+        strcpy_P(c, PSTR("Babystep X"));
+    else if (nr == 7 + BED_MENU_OFFSET + EXTRUDERS * 2)
+        strcpy_P(c, PSTR("Babystep Y"));
+    else if (nr == 8 + BED_MENU_OFFSET + EXTRUDERS * 2)
+        strcpy_P(c, PSTR("Babystep Z"));
+#endif // BABYSTEPPING
     return c;
 }
 
@@ -846,7 +887,11 @@ void lcd_menu_print_tune_heatup_nozzle1()
 
 static void lcd_menu_print_tune()
 {
+#ifdef BABYSTEPPING
+    lcd_scroll_menu(PSTR("TUNE"), 9 + BED_MENU_OFFSET + EXTRUDERS * 2, tune_item_callback, tune_item_details_callback);
+#else
     lcd_scroll_menu(PSTR("TUNE"), 6 + BED_MENU_OFFSET + EXTRUDERS * 2, tune_item_callback, tune_item_details_callback);
+#endif // BABYSTEPPING
     if (lcd_lib_button_pressed)
     {
         if (IS_SELECTED_SCROLL(0))
@@ -882,6 +927,14 @@ static void lcd_menu_print_tune()
             lcd_change_to_menu(lcd_menu_print_tune_retraction);
         else if (IS_SELECTED_SCROLL(5 + BED_MENU_OFFSET + EXTRUDERS * 2))
             LCD_EDIT_SETTING(led_brightness_level, "Brightness", "%", 0, 100);
+#ifdef BABYSTEPPING
+        else if (IS_SELECTED_SCROLL(6 + BED_MENU_OFFSET + EXTRUDERS * 2))
+            lcd_change_to_menu(lcd_menu_babystep_x, 0);
+        else if (IS_SELECTED_SCROLL(7 + BED_MENU_OFFSET + EXTRUDERS * 2))
+            lcd_change_to_menu(lcd_menu_babystep_y, 0);
+        else if (IS_SELECTED_SCROLL(8 + BED_MENU_OFFSET + EXTRUDERS * 2))
+            lcd_change_to_menu(lcd_menu_babystep_z, 0);
+#endif
     }
 }
 

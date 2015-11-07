@@ -57,6 +57,7 @@
 #define SERIAL_PROTOCOLLN(x) do {MYSERIAL.print(x);MYSERIAL.write('\n');} while(0)
 #define SERIAL_PROTOCOLLNPGM(x) do{serialprintPGM(PSTR(x));MYSERIAL.write('\n');} while(0)
 
+extern const char axis_codes[NUM_AXIS];
 
 const char errormagic[] PROGMEM ="Error:";
 const char echomagic[] PROGMEM ="echo:";
