@@ -56,9 +56,25 @@ void lcd_menu_first_run_init()
     DRAW_PROGRESS_NR_IF_NOT_DONE(1);
     lcd_lib_draw_string_centerP(10, PSTR("Welcome to the first"));
     lcd_lib_draw_string_centerP(20, PSTR("startup of your"));
-    lcd_lib_draw_string_centerP(30, PSTR("Ultimaker! Press the"));
-    lcd_lib_draw_string_centerP(40, PSTR("button to continue"));
+    lcd_lib_draw_string_centerP(30, PSTR("Ultimaker 2 With"));
+    lcd_lib_draw_string_centerP(40, PSTR("Z-Unlimited add-on!"));
     lcd_lib_update_screen();
+}
+
+static void ZUnlimitedDefaultSettings()
+{
+    char buffer[32];
+    sprintf_P(buffer, PSTR("M206 X0.00 Y0.00 Z0.00"));
+    enquecommand(buffer);
+//    sprintf_P(buffer, PSTR("M92 X80.00 Y80.00 Z1333.3333 E282.00"));
+// temp for temp setup with different timing pulley
+    sprintf_P(buffer, PSTR("M92 X80.00 Y80.00 Z1666.6667 E282.00"));
+    enquecommand(buffer);
+    sprintf_P(buffer, PSTR("M203 X200.00 Y200.00 Z10.00 E45.00"));
+    enquecommand(buffer);
+    sprintf_P(buffer, PSTR("M201 X3000 Y3000 Z100 E10000"));
+    enquecommand(buffer);
+    Config_StoreSettings();
 }
 
 static void homeAndParkHeadForCenterAdjustment2()
@@ -72,12 +88,13 @@ static void homeAndParkHeadForCenterAdjustment2()
 //Started bed leveling from the calibration menu
 void lcd_menu_first_run_start_bed_leveling()
 {
-    lcd_question_screen(lcd_menu_first_run_bed_level_center_adjust, homeAndParkHeadForCenterAdjustment2, PSTR("CONTINUE"), lcd_menu_main, NULL, PSTR("CANCEL"));
+    lcd_info_screen(lcd_menu_main, ZUnlimitedDefaultSettings, PSTR("CONTINUE"));
     lcd_lib_draw_string_centerP(10, PSTR("I will guide you"));
     lcd_lib_draw_string_centerP(20, PSTR("through the process"));
     lcd_lib_draw_string_centerP(30, PSTR("of adjusting your"));
     lcd_lib_draw_string_centerP(40, PSTR("buildplate."));
     lcd_lib_update_screen();
+    SET_FIRST_RUN_DONE();
 }
 
 static void homeAndRaiseBed()
@@ -91,13 +108,14 @@ static void homeAndRaiseBed()
 static void lcd_menu_first_run_init_2()
 {
     SELECT_MAIN_MENU_ITEM(0);
-    lcd_info_screen(lcd_menu_first_run_init_3, homeAndRaiseBed, PSTR("CONTINUE"));
+    lcd_info_screen(lcd_menu_first_run_init_3, NULL, PSTR("CONTINUE"));
     DRAW_PROGRESS_NR_IF_NOT_DONE(2);
     lcd_lib_draw_string_centerP(10, PSTR("Because this is the"));
-    lcd_lib_draw_string_centerP(20, PSTR("first startup I will"));
-    lcd_lib_draw_string_centerP(30, PSTR("walk you through"));
-    lcd_lib_draw_string_centerP(40, PSTR("a first run wizard."));
+    lcd_lib_draw_string_centerP(20, PSTR("first startup with"));
+    lcd_lib_draw_string_centerP(30, PSTR("Z-Unlimited, you"));
+    lcd_lib_draw_string_centerP(40, PSTR("get a wizard."));
     lcd_lib_update_screen();
+    SET_FIRST_RUN_DONE();
 }
 
 static void homeAndParkHeadForCenterAdjustment()
@@ -111,12 +129,12 @@ static void homeAndParkHeadForCenterAdjustment()
 static void lcd_menu_first_run_init_3()
 {
     SELECT_MAIN_MENU_ITEM(0);
-    lcd_info_screen(lcd_menu_first_run_bed_level_center_adjust, homeAndParkHeadForCenterAdjustment, PSTR("CONTINUE"));
+    lcd_info_screen(lcd_menu_main, NULL, PSTR("CONTINUE"));
     DRAW_PROGRESS_NR_IF_NOT_DONE(3);
-    lcd_lib_draw_string_centerP(10, PSTR("After transportation"));
-    lcd_lib_draw_string_centerP(20, PSTR("we need to do some"));
-    lcd_lib_draw_string_centerP(30, PSTR("adjustments, we are"));
-    lcd_lib_draw_string_centerP(40, PSTR("going to do that now."));
+    lcd_lib_draw_string_centerP(10, PSTR("New homing offset"));
+    lcd_lib_draw_string_centerP(20, PSTR("Other accelarations"));
+    lcd_lib_draw_string_centerP(30, PSTR("Steps per mm"));
+    lcd_lib_draw_string_centerP(40, PSTR("Max feedrates"));
     lcd_lib_update_screen();
 }
 

@@ -10,6 +10,7 @@
 #define LCD_GFX_HEIGHT 64
 
 #define LCD_RESET_PIN 5
+#define LCD_CS_PIN    6
 #define I2C_SDA_PIN   20
 #define I2C_SCL_PIN   21
 
@@ -85,6 +86,7 @@ static void i2c_led_write(uint8_t addr, uint8_t data)
 
 void lcd_lib_init()
 {
+    SET_OUTPUT(LCD_CS_PIN);
     SET_OUTPUT(LCD_RESET_PIN);
 
     SET_OUTPUT(I2C_SDA_PIN);
@@ -109,6 +111,7 @@ void lcd_lib_init()
     SET_INPUT(SDCARDDETECT);
     WRITE(SDCARDDETECT, HIGH);
 
+    WRITE(LCD_CS_PIN, 0);
     WRITE(I2C_SDA_PIN, 1);
     WRITE(I2C_SCL_PIN, 1);
 
@@ -152,9 +155,9 @@ void lcd_lib_init()
 
     i2c_send_raw(0x40);//Set start line
 
-    i2c_send_raw(0xA1);//Segment remap
+    i2c_send_raw(0xA0);//Segment remap UM2_UZ
 
-    i2c_send_raw(0xC8);//COM scan output direction
+    i2c_send_raw(0xC0);//COM scan output direction UM2_UZ
     i2c_send_raw(0xDA);//COM pins hardware configuration
     i2c_send_raw(0x12);
 

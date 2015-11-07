@@ -81,14 +81,11 @@ static void abortPrint()
         primed = false;
     }
 
-    if (current_position[Z_AXIS] > Z_MAX_POS - 30)
-    {
-        enquecommand_P(PSTR("G28 X0 Y0"));
-        enquecommand_P(PSTR("G28 Z0"));
-    }else{
-        enquecommand_P(PSTR("G28"));
-    }
-    enquecommand_P(PSTR("M84"));
+    // joris dont home Z with z-unlimited after print
+    enquecommand_P(PSTR("G28 X0 Y0"));
+
+    // joris dont release stepper Z with z-unlimited after print
+    enquecommand_P(PSTR("M84 X Y E"));
 }
 
 static void checkPrintFinished()

@@ -57,7 +57,6 @@
 #define SERIAL_PROTOCOLLN(x) do {MYSERIAL.print(x);MYSERIAL.write('\n');} while(0)
 #define SERIAL_PROTOCOLLNPGM(x) do{serialprintPGM(PSTR(x));MYSERIAL.write('\n');} while(0)
 
-extern const char axis_codes[NUM_AXIS];
 
 const char errormagic[] PROGMEM ="Error:";
 const char echomagic[] PROGMEM ="echo:";
@@ -194,11 +193,12 @@ void setPwmFrequency(uint8_t pin, int val);
   #define CRITICAL_SECTION_END    SREG = _sreg;
 #endif //CRITICAL_SECTION_START
 
+extern const char axis_codes[NUM_AXIS];
 extern float homing_feedrate[];
 extern bool axis_relative_modes[];
 extern int feedmultiply;
 extern int extrudemultiply[EXTRUDERS]; // Sets extrude multiply factor (in percent)
-extern float current_position[NUM_AXIS] ;
+extern float current_position[NUM_AXIS];
 extern float add_homeing[3];
 extern float min_pos[3];
 extern float max_pos[3];
