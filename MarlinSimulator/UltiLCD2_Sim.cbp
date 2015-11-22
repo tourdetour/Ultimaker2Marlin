@@ -38,6 +38,11 @@
 			<Add option="-DEXTRUDERS=2" />
 			<Add option="-DTEMP_SENSOR_1=20" />
 			<Add option="-DFILAMENT_SENSOR_PIN=-1" />
+			<Add option="-DBABYSTEPPING" />
+			<Add option="-DTEMP_SENSOR_BED=20" />
+			<Add option="-DHEATER_0_MAXTEMP=325" />
+			<Add option="-DHEATER_1_MAXTEMP=325" />
+			<Add option="-DHEATER_2_MAXTEMP=325" />
 			<Add directory="arduino_sim" />
 			<Add directory="avr_sim" />
 			<Add directory="../../SDL-1.2.15/include" />
@@ -103,6 +108,7 @@
 		<Unit filename="../Marlin/lifetime_stats.h" />
 		<Unit filename="../Marlin/machinesettings.cpp" />
 		<Unit filename="../Marlin/machinesettings.h" />
+		<Unit filename="../Marlin/macros.h" />
 		<Unit filename="../Marlin/motion_control.cpp" />
 		<Unit filename="../Marlin/motion_control.h" />
 		<Unit filename="../Marlin/pins.h" />

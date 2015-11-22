@@ -59,12 +59,12 @@ float current_temperature_bed = 0.0;
   float Kp=DEFAULT_Kp;
   float Ki=(DEFAULT_Ki*PID_dT);
   float Kd=(DEFAULT_Kd/PID_dT);
-  #ifdef PID_ADD_EXTRUSION_RATE
-    float Kc=DEFAULT_Kc;
-  #endif
+//  #ifdef PID_ADD_EXTRUSION_RATE
+//    float Kc=DEFAULT_Kc;
+//  #endif
 #endif //PIDTEMP
 
-#ifdef PIDTEMPBED
+#if defined(PIDTEMPBED) && (TEMP_SENSOR_BED != 0)
   float bedKp=DEFAULT_bedKp;
   float bedKi=(DEFAULT_bedKi*PID_dT);
   float bedKd=(DEFAULT_bedKd/PID_dT);
@@ -74,6 +74,9 @@ float current_temperature_bed = 0.0;
   unsigned char fanSpeedSoftPwm;
 #endif
 
+#if ENABLED(BABYSTEPPING)
+  volatile int babystepsTodo[3]={0,0,0};
+#endif
 
 //===========================================================================
 //=============================private variables============================
@@ -460,19 +463,31 @@ void manage_heater()
             temp_iState[e] = 0.0;
             pid_reset[e] = false;
           }
-          pTerm[e] = Kp * pid_error[e];
+          #if EXTRUDERS > 1
+            pTerm[e] = (active_extruder ? pid2[0] : Kp) * pid_error[e];
+          #else
+            pTerm[e] = Kp * pid_error[e];
+          #endif
           temp_iState[e] += pid_error[e];
           temp_iState[e] = constrain(temp_iState[e], temp_iState_min[e], temp_iState_max[e]);
-          iTerm[e] = Ki * temp_iState[e];
+          #if EXTRUDERS > 1
+            iTerm[e] = (active_extruder ? pid2[1] : Ki) * temp_iState[e];
+          #else
+            iTerm[e] = Ki * temp_iState[e];
+          #endif
 
           //K1 defined in Configuration.h in the PID settings
           #define K2 (1.0-K1)
-          dTerm[e] = (Kd * (pid_input - temp_dState[e]))*K2 + (K1 * dTerm[e]);
+          #if EXTRUDERS > 1
+            dTerm[e] = ((active_extruder ? pid2[2] : Kd) * (pid_input - temp_dState[e]))*K2 + (K1 * dTerm[e]);
+          #else
+            dTerm[e] = (Kd * (pid_input - temp_dState[e]))*K2 + (K1 * dTerm[e]);
+          #endif
           pid_output = constrain(pTerm[e] + iTerm[e] - dTerm[e], 0, PID_MAX);
         }
         temp_dState[e] = pid_input;
     #else
-          pid_output = constrain(target_temp, 0, PID_MAX);
+        pid_output = constrain(target_temp, 0, PID_MAX);
     #endif //PID_OPENLOOP
     #ifdef PID_DEBUG
     SERIAL_ECHO_START;
@@ -532,9 +547,9 @@ void manage_heater()
         #endif
       }
     #endif
-    if (soft_pwm[e] == (PID_MAX >> 1))
+    if ((heater_check_time) && (soft_pwm[e] == (PID_MAX >> 1)))
     {
-        if (current_temperature[e] - max_heating_start_temperature[e] > MAX_HEATING_TEMPERATURE_INCREASE)
+        if (current_temperature[e] - max_heating_start_temperature[e] > heater_check_temp)
         {
             max_heating_start_millis[e] = 0;
         }
@@ -543,7 +558,7 @@ void manage_heater()
             max_heating_start_millis[e] = millis();
             max_heating_start_temperature[e] = current_temperature[e];
         }
-        if (millis() > max_heating_start_millis[e] + MAX_HEATING_CHECK_MILLIS)
+        if (millis() > max_heating_start_millis[e] + heater_check_time*1000)
         {
             //Did not heat up MAX_HEATING_TEMPERATURE_INCREASE in MAX_HEATING_CHECK_MILLIS while the PID was at the maximum.
             //Potential problems could be that the heater is not working, or the temperature sensor is not measuring what the heater is heating.
@@ -791,11 +806,11 @@ void tp_init()
     temp_iState_min[e] = 0.0;
     temp_iState_max[e] = PID_INTEGRAL_DRIVE_MAX / Ki;
 #endif //PIDTEMP
-#if defined(PIDTEMPBED) && (TEMP_SENSOR_BED != 0)
-    temp_iState_min_bed = 0.0;
-    temp_iState_max_bed = PID_INTEGRAL_DRIVE_MAX / bedKi;
-#endif //PIDTEMPBED
   }
+#if defined(PIDTEMPBED) && (TEMP_SENSOR_BED != 0)
+  temp_iState_min_bed = 0.0;
+  temp_iState_max_bed = PID_INTEGRAL_DRIVE_MAX / bedKi;
+#endif //PIDTEMPBED
 
   #if defined(HEATER_0_PIN) && (HEATER_0_PIN > -1)
     SET_OUTPUT(HEATER_0_PIN);
@@ -1362,6 +1377,24 @@ ISR(TIMER0_COMPB_vect)
     }
 #endif
   }
+#if ENABLED(BABYSTEPPING)
+  for(uint8_t axis=0; axis<3; ++axis)
+  {
+    int curTodo=babystepsTodo[axis]; //get rid of volatile for performance
+
+    if(curTodo>0)
+    {
+      babystep(axis,/*fwd*/true);
+      --babystepsTodo[axis]; //less to do next time
+    }
+    else if(curTodo<0)
+    {
+      babystep(axis,/*fwd*/false);
+      ++babystepsTodo[axis]; //less to do next time
+    }
+  }
+#endif //BABYSTEPPING
+
 }
 
 #ifdef PIDTEMP

@@ -25,7 +25,7 @@
 #include "stepper.h"
 #include "planner.h"
 #include "temperature.h"
-#include "ultralcd.h"
+#include "preferences.h"
 #include "UltiLCD2.h"
 #include "language.h"
 #include "lifetime_stats.h"
@@ -338,6 +338,10 @@ FORCE_INLINE void trapezoid_generator_reset() {
 
 }
 
+#if EXTRUDERS > 1
+  unsigned char last_extruder = 0xFF;
+#endif // EXTRUDERS
+
 // "The Stepper Driver Interrupt" - This timer interrupt is the workhorse.
 // It pops blocks from the block_buffer and executes them by pulsing the stepper pins appropriately.
 ISR(TIMER1_COMPA_vect)
@@ -348,6 +352,42 @@ ISR(TIMER1_COMPA_vect)
     current_block = plan_get_current_block();
     if (current_block != NULL) {
       current_block->busy = true;
+#if EXTRUDERS > 1
+      if (current_block->active_extruder != last_extruder)
+      {
+        // disable unused steppers
+        if (last_extruder == 0)
+        {
+            disable_e0();
+        }
+        else if (last_extruder == 1)
+        {
+            disable_e1();
+        }
+        else
+        {
+            disable_e2();
+        }
+    #if defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
+        // adjust motor current
+        digipot_current(2, current_block->active_extruder ? motor_current_e2 : motor_current_setting[2]);
+        last_extruder = current_block->active_extruder;
+    #endif
+        // enable current stepper
+        if (last_extruder == 0)
+        {
+            enable_e0();
+        }
+        else if (last_extruder == 1)
+        {
+            enable_e1();
+        }
+        else
+        {
+            enable_e2();
+        }
+      }
+#endif // EXTRUDERS
       trapezoid_generator_reset();
       counter_x = -(current_block->step_event_count >> 1);
       counter_y = counter_x;
@@ -848,6 +888,9 @@ void st_init()
     WRITE(E2_STEP_PIN,INVERT_E_STEP_PIN);
     disable_e2();
   #endif
+  #if EXTRUDERS > 1
+    last_extruder = 0xFF;
+  #endif
 
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
@@ -932,6 +975,9 @@ void finishAndDisableSteppers()
   disable_e0();
   disable_e1();
   disable_e2();
+#if EXTRUDERS > 1
+  last_extruder = 0xFF;
+#endif
 }
 
 void quickStop()
@@ -942,6 +988,143 @@ void quickStop()
   current_block = NULL;
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 }
+
+#if ENABLED(BABYSTEPPING)
+
+// MUST ONLY BE CALLED BY AN ISR,
+// No other ISR should ever interrupt this!
+void babystep(const uint8_t axis, const bool direction)
+{
+  switch(axis)
+  {
+  case X_AXIS:
+  {
+    enable_x();
+    uint8_t old_x_dir_pin= READ(X_DIR_PIN);  //if dualzstepper, both point to same direction.
+
+    //setup new step
+    WRITE(X_DIR_PIN,(INVERT_X_DIR)^direction);
+    #ifdef DUAL_X_CARRIAGE
+      WRITE(X2_DIR_PIN,(INVERT_X_DIR)^direction);
+    #endif
+
+    //perform step
+    WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN);
+    #ifdef DUAL_X_CARRIAGE
+      WRITE(X2_STEP_PIN, !INVERT_X_STEP_PIN);
+    #endif
+    delayMicroseconds(2);
+    WRITE(X_STEP_PIN, INVERT_X_STEP_PIN);
+    #ifdef DUAL_X_CARRIAGE
+      WRITE(X2_STEP_PIN, INVERT_X_STEP_PIN);
+    #endif
+
+    //get old pin state back.
+    WRITE(X_DIR_PIN,old_x_dir_pin);
+    #ifdef DUAL_X_CARRIAGE
+      WRITE(X2_DIR_PIN,old_x_dir_pin);
+    #endif
+
+  }
+  break;
+  case Y_AXIS:
+  {
+    enable_y();
+    uint8_t old_y_dir_pin= READ(Y_DIR_PIN);  //if dualzstepper, both point to same direction.
+
+    //setup new step
+    WRITE(Y_DIR_PIN,(INVERT_Y_DIR)^direction);
+    #ifdef DUAL_Y_CARRIAGE
+      WRITE(Y2_DIR_PIN,(INVERT_Y_DIR)^direction);
+    #endif
+
+    //perform step
+    WRITE(Y_STEP_PIN, !INVERT_Y_STEP_PIN);
+    #ifdef DUAL_Y_CARRIAGE
+      WRITE(Y2_STEP_PIN, !INVERT_Y_STEP_PIN);
+    #endif
+    delayMicroseconds(2);
+    WRITE(Y_STEP_PIN, INVERT_Y_STEP_PIN);
+    #ifdef DUAL_Y_CARRIAGE
+      WRITE(Y2_STEP_PIN, INVERT_Y_STEP_PIN);
+    #endif
+
+    //get old pin state back.
+    WRITE(Y_DIR_PIN,old_y_dir_pin);
+    #ifdef DUAL_Y_CARRIAGE
+      WRITE(Y2_DIR_PIN,old_y_dir_pin);
+    #endif
+
+  }
+  break;
+
+#ifndef DELTA
+  case Z_AXIS:
+  {
+    enable_z();
+    uint8_t old_z_dir_pin= READ(Z_DIR_PIN);  //if dualzstepper, both point to same direction.
+    //setup new step
+    WRITE(Z_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
+    #ifdef Z_DUAL_STEPPER_DRIVERS
+      WRITE(Z2_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
+    #endif
+    //perform step
+    WRITE(Z_STEP_PIN, !INVERT_Z_STEP_PIN);
+    #ifdef Z_DUAL_STEPPER_DRIVERS
+      WRITE(Z2_STEP_PIN, !INVERT_Z_STEP_PIN);
+    #endif
+    //wait a tiny bit
+    delayMicroseconds(2);
+    WRITE(Z_STEP_PIN, INVERT_Z_STEP_PIN);
+    #ifdef Z_DUAL_STEPPER_DRIVERS
+      WRITE(Z2_STEP_PIN, INVERT_Z_STEP_PIN);
+    #endif
+
+    //get old pin state back.
+    WRITE(Z_DIR_PIN,old_z_dir_pin);
+    #ifdef Z_DUAL_STEPPER_DRIVERS
+      WRITE(Z2_DIR_PIN,old_z_dir_pin);
+    #endif
+  }
+  break;
+#else //DELTA
+  case Z_AXIS:
+  {
+    enable_x();
+    enable_y();
+    enable_z();
+    uint8_t old_x_dir_pin= READ(X_DIR_PIN);
+    uint8_t old_y_dir_pin= READ(Y_DIR_PIN);
+    uint8_t old_z_dir_pin= READ(Z_DIR_PIN);
+    //setup new step
+    WRITE(X_DIR_PIN,(INVERT_X_DIR)^direction^BABYSTEP_INVERT_Z);
+    WRITE(Y_DIR_PIN,(INVERT_Y_DIR)^direction^BABYSTEP_INVERT_Z);
+    WRITE(Z_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
+
+    //perform step
+    WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN);
+    WRITE(Y_STEP_PIN, !INVERT_Y_STEP_PIN);
+    WRITE(Z_STEP_PIN, !INVERT_Z_STEP_PIN);
+
+    //wait a tiny bit
+    delayMicroseconds(2);
+    WRITE(X_STEP_PIN, INVERT_X_STEP_PIN);
+    WRITE(Y_STEP_PIN, INVERT_Y_STEP_PIN);
+    WRITE(Z_STEP_PIN, INVERT_Z_STEP_PIN);
+
+    //get old pin state back.
+    WRITE(X_DIR_PIN,old_x_dir_pin);
+    WRITE(Y_DIR_PIN,old_y_dir_pin);
+    WRITE(Z_DIR_PIN,old_z_dir_pin);
+
+  }
+  break;
+#endif
+
+  default:    break;
+  }
+}
+#endif //BABYSTEPPING
 
 void digitalPotWrite(int address, int value) // From Arduino DigitalPotControl example
 {

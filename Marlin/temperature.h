@@ -44,15 +44,22 @@ extern float current_temperature_bed;
 #endif
 
 #ifdef PIDTEMP
-  extern float Kp,Ki,Kd,Kc;
+  extern float Kp,Ki,Kd;
+//  #ifdef PID_ADD_EXTRUSION_RATE
+//  extern float Kc;
+//  #endif // PID_ADD_EXTRUSION_RATE
   float scalePID_i(float i);
   float scalePID_d(float d);
   float unscalePID_i(float i);
   float unscalePID_d(float d);
 
 #endif
-#ifdef PIDTEMPBED
+#if defined(PIDTEMPBED) && (TEMP_SENSOR_BED != 0)
   extern float bedKp,bedKi,bedKd;
+#endif
+
+#if ENABLED(BABYSTEPPING)
+  extern volatile int babystepsTodo[3];
 #endif
 
 //high level conversion routines, for use outside of temperature.cpp
