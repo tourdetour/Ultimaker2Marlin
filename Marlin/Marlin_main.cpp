@@ -820,11 +820,14 @@ static void homeaxis(int axis) {
     {
         if (axis == Z_AXIS)
         {
+            //Move the bed upwards, as most likely something is stuck under the bed when we cannot reach the endstop.
+            // We need to move up, as the Z screw is quite strong and will lodge the bed into a position where it is hard to remove by hand.
             current_position[axis] = 0;
             plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-            destination[axis] = -home_retract_mm(axis) * home_dir(axis) * 10.0;
+            destination[axis] = -5 * home_dir(axis);
             plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
-            st_synchronize();
+            //Disable the motor power so the bed can be moved by hand
+            finishAndDisableSteppers();
 
             SERIAL_ERROR_START;
             SERIAL_ERRORLNPGM("Endstop not pressed after homing down. Endstop broken?");
@@ -1280,7 +1283,7 @@ void process_commands()
         break;
       starpos = (strchr(strchr_pointer + 4,'*'));
       if(starpos!=NULL)
-        *(starpos-1)='\0';
+        *(starpos)='\0';
       card.openFile(strchr_pointer + 4,true);
       break;
     case 24: //M24 - Start SD print
@@ -1510,6 +1513,11 @@ void process_commands()
             residencyStart = millis();
           }
         #endif //TEMP_RESIDENCY_TIME
+          if (printing_state != PRINT_STATE_HEATING)
+          {
+              // print aborted
+              break;
+          }
         }
         LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
         starttime=millis();
@@ -1540,6 +1548,11 @@ void process_commands()
           manage_inactivity();
           lcd_update();
           lifetime_stats_tick();
+          if (printing_state != PRINT_STATE_HEATING_BED)
+          {
+              // print aborted
+              break;
+          }
         }
         LCD_MESSAGEPGM(MSG_BED_DONE);
         previous_millis_cmd = millis();
@@ -1639,6 +1652,9 @@ void process_commands()
           disable_e0();
           disable_e1();
           disable_e2();
+        #if EXTRUDERS > 1
+          last_extruder = 0xFF;
+        #endif
           finishAndDisableSteppers();
         }
         else
@@ -1652,6 +1668,9 @@ void process_commands()
               disable_e0();
               disable_e1();
               disable_e2();
+          #if EXTRUDERS > 1
+              last_extruder = 0xFF;
+          #endif
             }
           #endif
         }
@@ -1934,13 +1953,34 @@ void process_commands()
     #ifdef PIDTEMP
     case 301: // M301
       {
-        if(code_seen('P')) Kp = code_value();
-        if(code_seen('I')) Ki = scalePID_i(code_value());
-        if(code_seen('D')) Kd = scalePID_d(code_value());
+        if(code_seen('P'))
+        {
+            Kp = code_value();
+        #if EXTRUDERS > 1
+            if (active_extruder) pid2[0] = Kp;
+        #endif // EXTRUDERS
+        }
 
-        #ifdef PID_ADD_EXTRUSION_RATE
-        if(code_seen('C')) Kc = code_value();
-        #endif
+        if(code_seen('I'))
+        {
+            Ki = scalePID_i(code_value());
+        #if EXTRUDERS > 1
+            if (active_extruder) pid2[1] = Ki;
+        #endif // EXTRUDERS
+        }
+
+        if(code_seen('D'))
+        {
+            Kd = scalePID_d(code_value());
+        #if EXTRUDERS > 1
+            if (active_extruder) pid2[2] = Kd;
+        #endif // EXTRUDERS
+        }
+
+
+//        #ifdef PID_ADD_EXTRUSION_RATE
+//        if(code_seen('C')) Kc = code_value();
+//        #endif
 
         updatePID();
         SERIAL_PROTOCOL(MSG_OK);
@@ -1950,16 +1990,16 @@ void process_commands()
         SERIAL_PROTOCOL(unscalePID_i(Ki));
         SERIAL_PROTOCOL(" d:");
         SERIAL_PROTOCOL(unscalePID_d(Kd));
-        #ifdef PID_ADD_EXTRUSION_RATE
-        SERIAL_PROTOCOL(" c:");
-        //Kc does not have scaling applied above, or in resetting defaults
-        SERIAL_PROTOCOL(Kc);
-        #endif
+//        #ifdef PID_ADD_EXTRUSION_RATE
+//        SERIAL_PROTOCOL(" c:");
+//        //Kc does not have scaling applied above, or in resetting defaults
+//        SERIAL_PROTOCOL(Kc);
+//        #endif
         SERIAL_PROTOCOLLN("");
       }
       break;
     #endif //PIDTEMP
-    #ifdef PIDTEMPBED
+    #if defined(PIDTEMPBED) && (TEMP_SENSOR_BED != 0)
     case 304: // M304
       {
         if (pidTempBed())
@@ -2144,6 +2184,9 @@ void process_commands()
         disable_e0();
         disable_e1();
         disable_e2();
+    #if EXTRUDERS > 1
+        last_extruder = 0xFF;
+    #endif
         delay(100);
         LCD_ALERTMESSAGEPGM(MSG_FILAMENTCHANGE);
         uint8_t cnt=0;
@@ -2243,6 +2286,9 @@ void process_commands()
         disable_e0();
         disable_e1();
         disable_e2();
+    #if EXTRUDERS > 1
+        last_extruder = 0xFF;
+    #endif
         while(card.pause){
           manage_heater();
           manage_inactivity();
@@ -2370,20 +2416,30 @@ void process_commands()
     case 10000://M10000 - Clear the whole LCD
         lcd_lib_clear();
         break;
-    case 10001://M10001 - Draw text on LCD, M10002 X0 Y0 SText
+    case 10001://M10001 - Draw text on LCD, M10002 X0 Y0 SText (when X is left out, it will draw centered)
         {
-        uint8_t x = 0, y = 0;
-        if (code_seen('X')) x = code_value_long();
-        if (code_seen('Y')) y = code_value_long();
-        if (code_seen('S')) lcd_lib_draw_string(x, y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+          uint8_t x = 0, y = 0;
+          if (code_seen('X')) {
+            x = code_value_long();
+            if (code_seen('Y')) y = code_value_long();
+             if (code_seen('S')) lcd_lib_draw_string(x, y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+          } else {
+            if (code_seen('Y')) y = code_value_long();
+             if (code_seen('S')) lcd_lib_draw_string_center(y,&cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+          }
         }
         break;
-    case 10002://M10002 - Draw inverted text on LCD, M10002 X0 Y0 SText
+    case 10002://M10002 - Draw inverted text on LCD, M10002 X0 Y0 SText (when X is left out, it will draw centered)
         {
-        uint8_t x = 0, y = 0;
-        if (code_seen('X')) x = code_value_long();
-        if (code_seen('Y')) y = code_value_long();
-        if (code_seen('S')) lcd_lib_clear_string(x, y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+          uint8_t x = 0, y = 0;
+          if (code_seen('X')) {
+            x = code_value_long();
+            if (code_seen('Y')) y = code_value_long();
+             if (code_seen('S')) lcd_lib_clear_string(x, y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+          } else {
+            if (code_seen('Y')) y = code_value_long();
+             if (code_seen('S')) lcd_lib_clear_string_center(y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+          }
         }
         break;
     case 10003://M10003 - Draw square on LCD, M10003 X1 Y1 W10 H10
@@ -2475,6 +2531,7 @@ void process_commands()
         // Set the new active extruder and position
         active_extruder = tmp_extruder;
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+
         // Move to the old position if 'F' was in the parameters
         if(make_move && Stopped == false) {
            prepare_move();
@@ -2789,6 +2846,9 @@ void manage_inactivity()
             disable_e0();
             disable_e1();
             disable_e2();
+        #if EXTRUDERS > 1
+            last_extruder = 0xFF;
+        #endif
         }
       }
     }
@@ -2837,6 +2897,9 @@ void kill()
   disable_e0();
   disable_e1();
   disable_e2();
+#if EXTRUDERS > 1
+  last_extruder = 0xFF;
+#endif
 
 #if defined(PS_ON_PIN) && PS_ON_PIN > -1
   pinMode(PS_ON_PIN,INPUT);

@@ -13,6 +13,13 @@
 #define EEPROM_HEATER_TIMEOUT 0x40D
 #define EEPROM_AXIS_LIMITS 0x40E  // 24 Byte
 #define EEPROM_END_RETRACT 0x426  // 4 Byte
+#define EEPROM_HEATER_CHECK_TEMP 0x42A  // 1 Byte
+#define EEPROM_HEATER_CHECK_TIME 0x42B  // 1 Byte
+#define EEPROM_PID_2 0x42C  // 12 Byte
+#define EEPROM_MOTOR_CURRENT_E2 0x438  // 2 Byte
+#define EEPROM_PID_BED 0x43A  // 12 Byte
+#define EEPROM_STEPS_E2 0x446  // 4 Byte
+#define EEPROM_RESERVED 0x44A  // next position
 
 #define GET_UI_MODE() (eeprom_read_byte((const uint8_t*)EEPROM_UI_MODE_OFFSET))
 #define SET_UI_MODE(n) do { eeprom_write_byte((uint8_t*)EEPROM_UI_MODE_OFFSET, n); } while(0)
@@ -36,6 +43,14 @@
 #define SET_HEATER_TIMEOUT(n) do { eeprom_write_byte((uint8_t*)EEPROM_HEATER_TIMEOUT, n); } while(0)
 #define GET_END_RETRACT() (eeprom_read_float((const float*)EEPROM_END_RETRACT))
 #define SET_END_RETRACT(n) do { eeprom_write_float((float*)EEPROM_END_RETRACT, n); } while(0)
+#define GET_HEATER_CHECK_TEMP() (eeprom_read_byte((const uint8_t*)EEPROM_HEATER_CHECK_TEMP))
+#define SET_HEATER_CHECK_TEMP(n) do { eeprom_write_byte((uint8_t*)EEPROM_HEATER_CHECK_TEMP, n); } while(0)
+#define GET_HEATER_CHECK_TIME() (eeprom_read_byte((const uint8_t*)EEPROM_HEATER_CHECK_TIME))
+#define SET_HEATER_CHECK_TIME(n) do { eeprom_write_byte((uint8_t*)EEPROM_HEATER_CHECK_TIME, n); } while(0)
+#define GET_MOTOR_CURRENT_E2() (eeprom_read_word((const uint16_t*)EEPROM_MOTOR_CURRENT_E2))
+#define SET_MOTOR_CURRENT_E2(n) do { eeprom_write_word((uint16_t*)EEPROM_MOTOR_CURRENT_E2, n); } while(0)
+#define GET_STEPS_E2() (eeprom_read_float((const float*)EEPROM_STEPS_E2))
+#define SET_STEPS_E2(n) do { eeprom_write_float((float*)EEPROM_STEPS_E2, n); } while(0)
 
 // UI Mode
 #define UI_MODE_STANDARD  0
@@ -66,12 +81,26 @@ extern uint8_t expert_flags;
 extern float end_of_print_retraction;
 extern uint16_t led_timeout;
 extern uint8_t led_sleep_brightness;
-
+extern uint8_t heater_check_temp;
+extern uint8_t heater_check_time;
+#if EXTRUDERS > 1
+extern float pid2[3];
+#endif
+#if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
+extern uint16_t motor_current_e2;
+#endif
+#if EXTRUDERS > 1
+extern float e2_steps_per_unit;
+#endif
 
 FORCE_INLINE bool pidTempBed() { return (expert_flags & FLAG_PID_BED); }
 
 #if EXTRUDERS > 1
 FORCE_INLINE bool swapExtruders() { return (expert_flags & FLAG_SWAP_EXTRUDERS); }
 #endif
+
+#define WORD_SETTING(n) (*(uint16_t*)&lcd_cache[(n) * sizeof(uint16_t)])
+#define FLOAT_SETTING(n) (*(float*)&lcd_cache[(n) * sizeof(float)])
+
 
 #endif //PREFERENCES_H
