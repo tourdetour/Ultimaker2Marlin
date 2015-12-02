@@ -4,7 +4,7 @@
 #include "Configuration.h"
 
 #define MAX_MACHINE_SETTINGS 10
-#define AXIS_CENTER_POS(n) (min_pos[n]+((max_pos[n]-min_pos[n])/2))
+#define AXIS_CENTER_POS(n) (max(int(min_pos[n]),0)+((int(max_pos[n])-max(int(min_pos[n]),0))/2))
 #define AXIS_LENGTH(n) (max_pos[n]-min_pos[n])
 
 class MachineSettings {

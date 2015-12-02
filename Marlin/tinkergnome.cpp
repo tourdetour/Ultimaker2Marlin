@@ -1603,7 +1603,7 @@ void lcd_prepare_buildplate_adjust()
     add_homeing[Z_AXIS] = 0;
     enquecommand_P(PSTR("G28 Z0 X0 Y0"));
     char buffer[32] = {0};
-    sprintf_P(buffer, PSTR("G1 F%i Z%i X%i Y%i"), int(homing_feedrate[0]), 35, int(max_pos[X_AXIS]-min_pos[X_AXIS])/2 + int(min_pos[X_AXIS]), int(max_pos[Y_AXIS]-min_pos[Y_AXIS])/2 + int(min_pos[Y_AXIS]));
+    sprintf_P(buffer, PSTR("G1 F%i Z%i X%i Y%i"), int(homing_feedrate[0]), 35, AXIS_CENTER_POS(X_AXIS), AXIS_CENTER_POS(Y_AXIS));
     enquecommand(buffer);
     enquecommand_P(PSTR("M84 X0 Y0"));
 }
@@ -2939,7 +2939,7 @@ void recover_start_print(const char *cmd)
     // move to heatup position
     enquecommand_P(PSTR("G28"));
     char buffer[32] = {0};
-    sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), int(min_pos[X_AXIS])+5, int(min_pos[Y_AXIS])+5);
+    sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), max(int(min_pos[X_AXIS]),0)+5, max(int(min_pos[Y_AXIS]),0)+5);
     enquecommand(buffer);
 
     menu.return_to_main();

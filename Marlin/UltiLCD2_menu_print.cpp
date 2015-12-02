@@ -523,7 +523,7 @@ void lcd_menu_print_select()
                         #endif // EXTRUDERS
                             // move to heatup position
                             char buffer[32] = {0};
-                            sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), int(min_pos[X_AXIS])+5, int(min_pos[Y_AXIS])+5);
+                            sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), max(int(min_pos[X_AXIS]),0)+5, max(int(min_pos[Y_AXIS]),0)+5);
                             enquecommand_P(PSTR("G28"));
                             enquecommand(buffer);
                             printing_state = PRINT_STATE_NORMAL;
@@ -1154,7 +1154,7 @@ void lcd_print_pause()
             }
 
             char buffer[32] = {0};
-            sprintf_P(buffer, PSTR("M601 X%i Y%i Z%i L%f"), int(min_pos[X_AXIS])+5, int(min_pos[Y_AXIS])+5, zdiff, end_of_print_retraction);
+            sprintf_P(buffer, PSTR("M601 X%i Y%i Z%i L%f"), max(int(min_pos[X_AXIS]),0)+5, max(int(min_pos[Y_AXIS]),0)+5, zdiff, end_of_print_retraction);
             enquecommand(buffer);
 
             primed = false;
