@@ -7,6 +7,7 @@
 void lcd_lib_init();
 void lcd_lib_update_screen();   /* Start sending out the display buffer to the screen. Wait till lcd_lib_update_ready before issuing any draw functions */
 bool lcd_lib_update_ready();
+void led_update();
 
 void lcd_lib_draw_string(uint8_t x, uint8_t y, const char* str);
 void lcd_lib_clear_string(uint8_t x, uint8_t y, const char* str);
@@ -36,6 +37,7 @@ void lcd_lib_keyclick();
 void lcd_lib_buttons_update();
 void lcd_lib_buttons_update_interrupt();
 void lcd_lib_led_color(uint8_t r, uint8_t g, uint8_t b);
+uint8_t lcd_lib_led_brightness();
 void lcd_lib_contrast(uint8_t data);
 
 extern int16_t lcd_lib_encoder_pos;

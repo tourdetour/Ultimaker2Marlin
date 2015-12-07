@@ -209,17 +209,21 @@ ISR(TWI_vect)
 }
 #endif
 
+void led_update()
+{
+    // force update of the encoder led ring
+    sleep_state |= SLEEP_UPDATE_LED;
+}
+
 void lcd_lib_update_screen()
 {
-    static uint8_t screenOff = 0;
-
     if (lcd_timeout > 0)
     {
         if ((millis() - last_user_interaction) > (lcd_timeout*MILLISECONDS_PER_MINUTE))
         {
-            if (!screenOff)
+            if (!(sleep_state & SLEEP_LCD_DIMMED))
             {
-                screenOff ^= 1;
+                sleep_state ^= SLEEP_LCD_DIMMED;
                 if (lcd_sleep_contrast > 0)
                 {
                     // reduce contrast
@@ -241,15 +245,16 @@ void lcd_lib_update_screen()
                     i2c_led_write(4, 0);//PWM2
                 }
             }
-            if (led_sleep_glow)
+            if (led_sleep_glow && !(sleep_state & SLEEP_LED_OFF))
             {
                 uint8_t glow = (int(led_glow) * led_sleep_glow) >> 8;
                 lcd_lib_led_color(glow, constrain(glow << 1, 0, 160), glow);
+                led_update();
             }
         }
-        else if (screenOff)
+        else if (sleep_state & SLEEP_LCD_DIMMED)
         {
-            screenOff ^= 1;
+            sleep_state ^= SLEEP_LCD_DIMMED;
             if (lcd_sleep_contrast > 0)
             {
                 // increase contrast back to normal
@@ -263,19 +268,19 @@ void lcd_lib_update_screen()
                 i2c_send_raw(LCD_COMMAND_DISPLAY_ON);
                 i2c_end();
             }
-            lcd_lib_led_color(40,40,54);
         }
     }
 
-    if (!screenOff || led_sleep_glow)
+    if (sleep_state & SLEEP_UPDATE_LED)
     {
+        sleep_state &= ~SLEEP_UPDATE_LED;
         // set values for encoder led ring
         i2c_led_write(2, led_r);//PWM0
         i2c_led_write(3, led_g);//PWM1
         i2c_led_write(4, led_b);//PWM2
     }
 
-    if (!screenOff || lcd_sleep_contrast)
+    if (!(sleep_state & SLEEP_LCD_DIMMED) || lcd_sleep_contrast)
     {
         // update screen content
         i2c_start();
@@ -316,6 +321,12 @@ void lcd_lib_led_color(uint8_t r, uint8_t g, uint8_t b)
     led_r = r;
     led_g = g;
     led_b = b;
+}
+
+uint8_t lcd_lib_led_brightness()
+{
+    uint16_t sum = (led_r+led_g+led_b);
+    return sum/3;
 }
 
 // norpchen
