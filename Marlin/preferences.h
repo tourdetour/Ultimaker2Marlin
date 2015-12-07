@@ -59,6 +59,14 @@
 #define UI_BEEP_SHORT    32
 #define UI_BEEP_OFF      64
 
+// SLEEP STATE
+#define SLEEP_LED_DIMMED  1
+#define SLEEP_LED_OFF     2
+#define SLEEP_LCD_DIMMED  4
+#define SLEEP_COOLING     8
+
+#define SLEEP_UPDATE_LED  128
+
 // control flags
 #define FLAG_PID_NOZZLE      1
 #define FLAG_PID_BED         2
@@ -83,6 +91,8 @@ extern uint16_t led_timeout;
 extern uint8_t led_sleep_brightness;
 extern uint8_t heater_check_temp;
 extern uint8_t heater_check_time;
+extern uint8_t sleep_state;
+
 #if EXTRUDERS > 1
 extern float pid2[3];
 #endif
@@ -101,6 +111,5 @@ FORCE_INLINE bool swapExtruders() { return (expert_flags & FLAG_SWAP_EXTRUDERS);
 
 #define WORD_SETTING(n) (*(uint16_t*)&lcd_cache[(n) * sizeof(uint16_t)])
 #define FLOAT_SETTING(n) (*(float*)&lcd_cache[(n) * sizeof(float)])
-
 
 #endif //PREFERENCES_H
