@@ -1805,26 +1805,26 @@ void lcd_menu_heatercheck()
     lcd_lib_update_screen();
 }
 
-
-static void lcd_menu_autotune_params()
-{
-    lcd_basic_screen();
-    lcd_lib_draw_hline(3, 124, 13);
-
-//    menu.process_submenu(get_autotune_menuoption, 5);
+// TODO: autotune
+//static void lcd_menu_autotune_params()
+//{
+//    lcd_basic_screen();
+//    lcd_lib_draw_hline(3, 124, 13);
 //
-    uint8_t flags = 0;
-//    for (uint8_t index=0; index<5; ++index) {
-//        menu.drawSubMenu(drawAutotuneSubmenu, index, flags);
+////    menu.process_submenu(get_autotune_menuoption, 5);
+////
+//    uint8_t flags = 0;
+////    for (uint8_t index=0; index<5; ++index) {
+////        menu.drawSubMenu(drawAutotuneSubmenu, index, flags);
+////    }
+//
+//    if (!(flags & MENU_STATUSLINE))
+//    {
+//        lcd_lib_draw_string_leftP(5, PSTR("PID autotune"));
 //    }
-
-    if (!(flags & MENU_STATUSLINE))
-    {
-        lcd_lib_draw_string_leftP(5, PSTR("PID autotune"));
-    }
-
-    lcd_lib_update_screen();
-}
+//
+//    lcd_lib_update_screen();
+//}
 
 
 #if (TEMP_SENSOR_BED != 0) || (EXTRUDERS > 1)
@@ -1845,10 +1845,11 @@ static void lcd_store_pid()
     menu.return_to_previous();
 }
 
-static void lcd_pid_autotune_e1()
-{
-
-}
+// TODO: autotune
+//static void lcd_pid_autotune_e1()
+//{
+//
+//}
 
 static void lcd_preset_e1_kd()
 {
@@ -2064,10 +2065,11 @@ static void init_tempcontrol_e2()
     menu.set_selection(1);
 }
 
-static void lcd_pid_autotune_e2()
-{
-
-}
+// TODO: autotune
+//static void lcd_pid_autotune_e2()
+//{
+//
+//}
 
 static void lcd_preset_e2_kd()
 {
@@ -2290,10 +2292,11 @@ static void lcd_store_pidbed()
     menu.return_to_previous();
 }
 
-static void lcd_pid_autotune_bed()
-{
-
-}
+// TODO: autotune
+//static void lcd_pid_autotune_bed()
+//{
+//
+//}
 
 static void lcd_toggle_pid_bed()
 {
@@ -2575,6 +2578,7 @@ void lcd_menu_tempcontrol()
         else if (IS_SELECTED_SCROLL(EXTRUDERS+1))
             menu.add_menu(menu_t(init_tempcontrol_bed, lcd_menu_tempcontrol_bed, NULL));
     }
+    lcd_lib_update_screen();
 }
 
 #elif (TEMP_SENSOR_BED != 0)
@@ -2584,13 +2588,14 @@ void lcd_menu_tempcontrol()
     lcd_tripple_menu(PSTR("EXTRUDER"), PSTR("BUILD-|PLATE"), PSTR("RETURN"));
     if (lcd_lib_button_pressed)
     {
-        if (IS_SELECTED_SCROLL(0))
+        if (IS_SELECTED_MAIN(0))
             menu.add_menu(menu_t(init_tempcontrol_e1, lcd_menu_tempcontrol_e1, NULL));
-        else if (IS_SELECTED_SCROLL(1))
+        else if (IS_SELECTED_MAIN(1))
             menu.add_menu(menu_t(init_tempcontrol_bed, lcd_menu_tempcontrol_bed, NULL));
         else
             menu.return_to_previous();
     }
+    lcd_lib_update_screen();
 }
 
 #elif EXTRUDERS > 1
@@ -2599,13 +2604,14 @@ void lcd_menu_tempcontrol()
     lcd_tripple_menu(PSTR("EXTRUDER|1"), PSTR("EXTRUDER|2"), PSTR("RETURN"));
     if (lcd_lib_button_pressed)
     {
-        if (IS_SELECTED_SCROLL(0))
-            menu.add_menu(menu_t(lcd_menu_tempcontrol_e1, MAIN_MENU_ITEM_POS(1)));
-        else if (IS_SELECTED_SCROLL(1))
-            menu.add_menu(menu_t(lcd_menu_tempcontrol_e2, MAIN_MENU_ITEM_POS(1)));
+        if (IS_SELECTED_MAIN(0))
+            menu.add_menu(menu_t(init_tempcontrol_e1, lcd_menu_tempcontrol_e1, NULL));
+        else if (IS_SELECTED_MAIN(1))
+            menu.add_menu(menu_t(init_tempcontrol_e2, lcd_menu_tempcontrol_e2, NULL));
         else
             menu.return_to_previous();
     }
+    lcd_lib_update_screen();
 }
 #endif
 
