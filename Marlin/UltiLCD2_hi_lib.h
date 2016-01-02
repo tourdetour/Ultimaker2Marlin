@@ -41,10 +41,7 @@ extern uint8_t lcd_setting_type;
 extern int16_t lcd_setting_min;
 extern int16_t lcd_setting_max;
 
-//extern menuFunc_t currentMenu;
-//extern menuFunc_t previousMenu;
 extern menuFunc_t postMenuCheck;
-//extern int16_t previousEncoderPos;
 extern uint8_t minProgress;
 
 #define LCD_EDIT_SETTING(_setting, _name, _postfix, _min, _max) do { \
@@ -107,10 +104,6 @@ extern uint8_t minProgress;
             lcd_setting_min = (_min) / 60 + 0.5; \
             lcd_setting_max = (_max) / 60 + 0.5; \
         } while(0)
-
-#define LED_NORMAL if (sleep_state & SLEEP_LED_OFF) { lcd_lib_led_color(0,0,0); } else { lcd_lib_led_color(40,40,54); } led_update();
-#define LED_GLOW   lcd_lib_led_color(8 + led_glow, 8 + led_glow, 32 + led_glow); led_update();
-#define LED_GLOW_ERROR lcd_lib_led_color(led_glow,128-led_glow,led_glow); led_update();
 
 //If we have a heated bed, then the heated bed menu entries have a size of 1, else they have a size of 0.
 #if TEMP_SENSOR_BED != 0
