@@ -195,16 +195,18 @@ void lcd_lib_init()
 }
 
 #if USE_TWI_INTERRUPT
-uint16_t lcd_update_pos = 0;
+volatile uint16_t lcd_update_pos = 0;
 ISR(TWI_vect)
 {
-    if (lcd_update_pos == LCD_GFX_WIDTH*LCD_GFX_HEIGHT/8)
+    if (lcd_update_pos >= LCD_GFX_WIDTH*LCD_GFX_HEIGHT/8)
     {
         i2c_end();
-    }else{
-        i2c_send_raw(lcd_buffer[lcd_update_pos]);
+    }
+    else
+    {
+        i2c_send_raw(lcd_buffer[lcd_update_pos++]);
         TWCR |= _BV(TWIE);
-        lcd_update_pos++;
+        // lcd_update_pos++;
     }
 }
 #endif
@@ -230,7 +232,7 @@ void lcd_lib_update_screen()
                     lcd_lib_contrast(min(lcd_sleep_contrast, lcd_contrast));
                 } else
                 {
-                    // LCD off
+                    // switch LCD off
                     i2c_start();
                     i2c_send_raw(I2C_LCD_ADDRESS << 1 | I2C_WRITE);
                     i2c_send_raw(I2C_LCD_SEND_COMMAND);
@@ -255,13 +257,16 @@ void lcd_lib_update_screen()
         else if (sleep_state & SLEEP_LCD_DIMMED)
         {
             sleep_state ^= SLEEP_LCD_DIMMED;
+            // reactivate led ring
+            LED_NORMAL
+
             if (lcd_sleep_contrast > 0)
             {
                 // increase contrast back to normal
                 lcd_lib_contrast(lcd_contrast);
             } else
             {
-                // LCD on
+                // switch LCD on
                 i2c_start();
                 i2c_send_raw(I2C_LCD_ADDRESS << 1 | I2C_WRITE);
                 i2c_send_raw(I2C_LCD_SEND_COMMAND);
