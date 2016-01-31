@@ -120,5 +120,4 @@ mkdir _Ultimaker2go
 $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker ${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1 FILAMENT_SENSOR_PIN=30 BABYSTEPPING HEATER_0_MAXTEMP=275 HEATER_1_MAXTEMP=275 HEATER_2_MAXTEMP=275"
 # cd -
 
-cp _Ultimaker2go/Marlin.hex resources/firmware/TinkerGnome-MarlinUltimaker2go-${BUILD_NAME}.hex
-
+cp _Ultimaker2go/Marlin.hex resources/firmware/Tinker-MarlinUltimaker2go-${BUILD_NAME}.hex
