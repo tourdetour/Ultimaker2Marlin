@@ -8,7 +8,7 @@
 #############################
 
 ##Which version name are we appending to the final archive
-export BUILD_NAME=16.01
+export BUILD_NAME=16.02
 
 #############################
 # Support functions
@@ -125,5 +125,13 @@ mkdir _Ultimaker2extendedDual
 $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extendedDual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}ex\"' TEMP_SENSOR_1=20 EXTRUDERS=2 FILAMENT_SENSOR_PIN=30 BABYSTEPPING HEATER_0_MAXTEMP=315 HEATER_1_MAXTEMP=315 HEATER_2_MAXTEMP=315"
 # cd -
 
-cp _Ultimaker2extended/Marlin.hex resources/firmware/TinkerGnome-MarlinUltimaker2extended-${BUILD_NAME}.hex
-cp _Ultimaker2extendedDual/Marlin.hex resources/firmware/TinkerGnome-MarlinUltimaker2extended-dual-${BUILD_NAME}.hex
+cp _Ultimaker2extended/Marlin.hex resources/firmware/Tinker-MarlinUltimaker2extended-${BUILD_NAME}.hex
+cp _Ultimaker2extendedDual/Marlin.hex resources/firmware/Tinker-MarlinUltimaker2extended-dual-${BUILD_NAME}.hex
+
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extendedPlus clean
+sleep 1
+mkdir _Ultimaker2plus
+$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extendedPlus DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}+\"' TEMP_SENSOR_1=0 EXTRUDERS=1 FILAMENT_SENSOR_PIN=30 BABYSTEPPING HEATER_0_MAXTEMP=315 HEATER_1_MAXTEMP=315 HEATER_2_MAXTEMP=315 INVERT_E0_DIR=true INVERT_E1_DIR=false INVERT_E2_DIR=true 'EEPROM_VERSION=\"V12\"'"
+
+cp _Ultimaker2extendedPlus/Marlin.hex resources/firmware/Tinker-_MarlinUltimaker2extendedPlus-${BUILD_NAME}.hex
+
