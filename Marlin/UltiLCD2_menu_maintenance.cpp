@@ -311,13 +311,13 @@ void start_move_material()
     enquecommand_P(PSTR("G92 E0"));
     if (ui_mode & UI_MODE_EXPERT)
     {
-        if (current_temperature[active_extruder] < (material[active_extruder].temperature / 2))
+        if (current_temperature[active_extruder] < (material[active_extruder].temperature[0] / 2))
         {
-            target_temperature[active_extruder] = material[active_extruder].temperature;
+            target_temperature[active_extruder] = material[active_extruder].temperature[0];
         }
         menu.add_menu(menu_t(lcd_menu_expert_extrude));
     }else{
-        target_temperature[active_extruder] = material[active_extruder].temperature;
+        target_temperature[active_extruder] = material[active_extruder].temperature[0];
         menu.add_menu(menu_t(lcd_menu_maintenance_extrude, MAIN_MENU_ITEM_POS(0)));
     }
 }
@@ -391,7 +391,7 @@ void lcd_menu_maintenance_advanced()
         }
         else if (IS_SELECTED_SCROLL(index++))
         {
-            // insert material
+        // insert material
         #if EXTRUDERS < 2
             active_extruder = 0;
             start_insert_material();
@@ -469,6 +469,11 @@ static void lcd_menu_maintenance_extrude()
         set_extrude_min_temp(EXTRUDE_MINTEMP);
         target_temperature[active_extruder] = 0;
         menu.return_to_previous();
+    }
+    // reset heater timeout until target temperature is reached
+    if ((degTargetHotend(active_extruder) < 120) || (degHotend(active_extruder) < (degTargetHotend(active_extruder) - 20)))
+    {
+        last_user_interaction = millis();
     }
 
     lcd_lib_clear();

@@ -8,7 +8,7 @@
 #############################
 
 ##Which version name are we appending to the final archive
-export BUILD_NAME=16.01
+export BUILD_NAME=16.02
 
 #############################
 # Support functions
@@ -121,3 +121,4 @@ $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_V
 # cd -
 
 cp _Ultimaker2go/Marlin.hex resources/firmware/TinkerGnome-MarlinUltimaker2go-${BUILD_NAME}.hex
+
