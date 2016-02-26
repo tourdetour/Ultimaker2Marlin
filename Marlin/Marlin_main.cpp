@@ -185,6 +185,7 @@ float extruder_offset[2][EXTRUDERS] = {
 };
 #endif
 uint8_t active_extruder = 0;
+uint8_t tmp_extruder = 0;
 uint8_t fanSpeed=0;
 uint8_t fanSpeedPercent=100;
 
@@ -251,9 +252,6 @@ static unsigned long stepper_inactive_time = DEFAULT_STEPPER_DEACTIVE_TIME*1000l
 unsigned long starttime=0;
 unsigned long stoptime=0;
 
-static uint8_t tmp_extruder;
-
-
 uint8_t Stopped = false;
 
 #if NUM_SERVOS > 0
@@ -273,6 +271,8 @@ void serial_echopair_P(const char *s_P, double v)
     { serialprintPGM(s_P); SERIAL_ECHO(v); }
 void serial_echopair_P(const char *s_P, unsigned long v)
     { serialprintPGM(s_P); SERIAL_ECHO(v); }
+void serial_action_P(const char *s_P)
+    { serialprintPGM(PSTR("//action:")); serialprintPGM(s_P); SERIAL_EOL; }
 
 extern "C"{
   extern unsigned int __bss_end;
@@ -473,10 +473,7 @@ void loop()
   {
     get_command();
   }
-  else if (MYSERIAL.available() > 0)
-  {
-    lastSerialCommandTime = millis();
-  }
+
   #ifdef SDSUPPORT
   card.checkautostart(false);
   #endif
@@ -516,12 +513,24 @@ void loop()
       bufindr = (bufindr + 1)%BUFSIZE;
     }
   }
-  //check heater every n milliseconds
-  manage_heater();
-  manage_inactivity();
+  idle(false);
   checkHitEndstops();
-  lcd_update();
-  lifetime_stats_tick();
+}
+
+FORCE_INLINE float code_value()
+{
+  return (strtod(strchr_pointer + 1, NULL));
+}
+
+FORCE_INLINE long code_value_long()
+{
+  return (strtol(strchr_pointer + 1, NULL, 10));
+}
+
+static bool code_seen(char code)
+{
+  strchr_pointer = strchr(cmdbuffer[bufindr], code);
+  return (strchr_pointer != NULL);  //Return True if a character was found
 }
 
 void get_command()
@@ -539,12 +548,10 @@ void get_command()
       }
       cmdbuffer[bufindw][serial_count] = 0; //terminate string
       if(!comment_mode){
-        comment_mode = false; //for new command
-        fromsd[bufindw] = false;
-        if(strchr(cmdbuffer[bufindw], 'N') != NULL)
+        fromsd[bufindw] = false; //for new command
+        if(code_seen('N'))
         {
-          strchr_pointer = strchr(cmdbuffer[bufindw], 'N');
-          gcode_N = (strtol(&cmdbuffer[bufindw][strchr_pointer - cmdbuffer[bufindw] + 1], NULL, 10));
+          gcode_N = code_value_long();
           if(gcode_N != gcode_LastN+1 && (strstr_P(cmdbuffer[bufindw], PSTR("M110")) == NULL) ) {
             SERIAL_ERROR_START;
             SERIAL_ERRORPGM(MSG_ERR_LINE_NO);
@@ -555,14 +562,13 @@ void get_command()
             return;
           }
 
-          if(strchr(cmdbuffer[bufindw], '*') != NULL)
+          if(code_seen('*'))
           {
             byte checksum = 0;
             byte count = 0;
             while(cmdbuffer[bufindw][count] != '*') checksum = checksum^cmdbuffer[bufindw][count++];
-            strchr_pointer = strchr(cmdbuffer[bufindw], '*');
 
-            if( (int)(strtod(&cmdbuffer[bufindw][strchr_pointer - cmdbuffer[bufindw] + 1], NULL)) != checksum) {
+            if( (int)(code_value()) != checksum) {
               SERIAL_ERROR_START;
               SERIAL_ERRORPGM(MSG_ERR_CHECKSUM_MISMATCH);
               SERIAL_ERRORLN(gcode_LastN);
@@ -587,7 +593,7 @@ void get_command()
         }
         else  // if we don't receive 'N' but still see '*'
         {
-          if((strchr(cmdbuffer[bufindw], '*') != NULL))
+          if(code_seen('*'))
           {
             SERIAL_ERROR_START;
             SERIAL_ERRORPGM(MSG_ERR_NO_LINENUMBER_WITH_CHECKSUM);
@@ -596,9 +602,8 @@ void get_command()
             return;
           }
         }
-        if((strchr(cmdbuffer[bufindw], 'G') != NULL)){
-          strchr_pointer = strchr(cmdbuffer[bufindw], 'G');
-          switch((int)((strtod(&cmdbuffer[bufindw][strchr_pointer - cmdbuffer[bufindw] + 1], NULL)))){
+        if(code_seen('G')){
+          switch((int)(code_value())){
           case 0:
           case 1:
           case 2:
@@ -621,9 +626,10 @@ void get_command()
 
         }
 #ifdef ENABLE_ULTILCD2
-        strchr_pointer = strchr(cmdbuffer[bufindw], 'M');
-        if (strtol(&cmdbuffer[bufindw][strchr_pointer - cmdbuffer[bufindw] + 1], NULL, 10) != 105)
+        if (code_seen('M') && (code_value_long() != 105))
+        {
             lastSerialCommandTime = millis();
+        }
 #endif
         bufindw = (bufindw + 1)%BUFSIZE;
         buflen += 1;
@@ -722,22 +728,6 @@ void get_command()
 
   #endif //SDSUPPORT
 
-}
-
-float code_value()
-{
-  return (strtod(&cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1], NULL));
-}
-
-long code_value_long()
-{
-  return (strtol(&cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1], NULL, 10));
-}
-
-bool code_seen(char code)
-{
-  strchr_pointer = strchr(cmdbuffer[bufindr], code);
-  return (strchr_pointer != NULL);  //Return True if a character was found
 }
 
 #define DEFINE_PGM_READ_ANY(type, reader)       \
@@ -908,6 +898,69 @@ static void homeaxis(int axis) {
 }
 #define HOMEAXIS(LETTER) homeaxis(LETTER##_AXIS)
 
+#if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+  void print_heaterstates()
+  {
+    #if (TEMP_SENSOR_0 != 0) || ENABLED(HEATER_0_USES_MAX6675)
+      SERIAL_PROTOCOLPGM(" T:");
+      SERIAL_PROTOCOL_F(degHotend(tmp_extruder), 1);
+      SERIAL_PROTOCOLPGM(" /");
+      SERIAL_PROTOCOL_F(degTargetHotend(tmp_extruder), 1);
+    #endif
+    #if (TEMP_SENSOR_BED != 0)
+      SERIAL_PROTOCOLPGM(" B:");
+      SERIAL_PROTOCOL_F(degBed(), 1);
+      SERIAL_PROTOCOLPGM(" /");
+      SERIAL_PROTOCOL_F(degTargetBed(), 1);
+    #endif
+    #if EXTRUDERS > 1
+      int8_t index;
+      for (int8_t e = 0; e < EXTRUDERS; ++e) {
+        index = (swapExtruders() ? e^0x01 : e);
+        SERIAL_PROTOCOLPGM(" T");
+        SERIAL_PROTOCOL(e);
+        SERIAL_PROTOCOLCHAR(':');
+        SERIAL_PROTOCOL_F(degHotend(index), 1);
+        SERIAL_PROTOCOLPGM(" /");
+        SERIAL_PROTOCOL_F(degTargetHotend(index), 1);
+      }
+    #endif
+    #if (TEMP_SENSOR_BED != 0)
+      SERIAL_PROTOCOLPGM(" B@:");
+      SERIAL_PROTOCOL(getHeaterPower(-1));
+    #endif
+    SERIAL_PROTOCOLPGM(" @:");
+    SERIAL_PROTOCOL(getHeaterPower(tmp_extruder));
+    #if EXTRUDERS > 1
+      for (int8_t e = 0; e < EXTRUDERS; ++e) {
+        index = (swapExtruders() ? e^0x01 : e);
+        SERIAL_PROTOCOLPGM(" @");
+        SERIAL_PROTOCOL(e);
+        SERIAL_PROTOCOLCHAR(':');
+        SERIAL_PROTOCOL(getHeaterPower(index));
+      }
+    #endif
+  }
+#endif
+
+/**
+ * M105: Read hot end and bed temperature
+ */
+inline void gcode_M105()
+{
+  if (setTargetedHotend(105)) return;
+
+  #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+    SERIAL_PROTOCOLPGM(MSG_OK);
+    print_heaterstates();
+  #else // !HAS_TEMP_0 && !HAS_TEMP_BED
+    SERIAL_ERROR_START;
+    SERIAL_ERRORLNPGM(MSG_ERR_NO_THERMISTORS);
+  #endif
+
+  SERIAL_EOL;
+}
+
 void process_commands()
 {
   unsigned long codenum; //throw away variable
@@ -945,6 +998,7 @@ void process_commands()
       if (printing_state == PRINT_STATE_RECOVER)
         break;
 
+      serial_action_P(PSTR("pause"));
       LCD_MESSAGEPGM(MSG_DWELL);
       codenum = 0;
       if(code_seen('P')) codenum = code_value(); // milliseconds to wait
@@ -954,12 +1008,12 @@ void process_commands()
       codenum += millis();  // keep track of when we started waiting
       previous_millis_cmd = millis();
       printing_state = PRINT_STATE_DWELL;
-      while(millis()  < codenum ){
-        manage_heater();
-        manage_inactivity();
-        lcd_update();
-        lifetime_stats_tick();
+      while(millis() < codenum )
+      {
+          idle();
       }
+      serial_action_P(PSTR("resume"));
+
       break;
       #ifdef FWRETRACT
       case 10: // G10 retract
@@ -1206,6 +1260,9 @@ void process_commands()
 
       printing_state = PRINT_STATE_WAIT_USER;
       LCD_MESSAGEPGM(MSG_USERWAIT);
+
+      serial_action_P(PSTR("pause"));
+
       codenum = 0;
       if(code_seen('P')) codenum = code_value(); // milliseconds to wait
       if(code_seen('S')) codenum = code_value() * 1000; // seconds to wait
@@ -1215,19 +1272,14 @@ void process_commands()
       if (codenum > 0){
         codenum += millis();  // keep track of when we started waiting
         while(millis()  < codenum && !lcd_clicked()){
-          manage_heater();
-          manage_inactivity();
-          lcd_update();
-          lifetime_stats_tick();
+          idle();
         }
       }else{
         while(!lcd_clicked()){
-          manage_heater();
-          manage_inactivity();
-          lcd_update();
-          lifetime_stats_tick();
+          idle();
         }
       }
+      serial_action_P(PSTR("resume"));
       LCD_MESSAGEPGM(MSG_RESUMING);
     }
     break;
@@ -1239,14 +1291,13 @@ void process_commands()
         if (printing_state == PRINT_STATE_RECOVER)
           break;
 
+        serial_action_P(PSTR("pause"));
         card.pause = true;
         while(card.pause)
         {
-          manage_heater();
-          manage_inactivity();
-          lcd_update();
-          lifetime_stats_tick();
+          idle();
         }
+        serial_action_P(PSTR("resume"));
     }
     break;
 #endif
@@ -1415,33 +1466,8 @@ void process_commands()
 #endif // TEMP_SENSOR_BED
       break;
     case 105 : // M105
-      if(setTargetedHotend(105)){
-        break;
-        }
-      #if defined(TEMP_0_PIN) && TEMP_0_PIN > -1
-        SERIAL_PROTOCOLPGM("ok T:");
-        SERIAL_PROTOCOL_F(degHotend(tmp_extruder),1);
-        SERIAL_PROTOCOLPGM(" /");
-        SERIAL_PROTOCOL_F(degTargetHotend(tmp_extruder),1);
-        #if defined(TEMP_BED_PIN) && TEMP_BED_PIN > -1 && TEMP_SENSOR_BED != 0
-          SERIAL_PROTOCOLPGM(" B:");
-          SERIAL_PROTOCOL_F(degBed(),1);
-          SERIAL_PROTOCOLPGM(" /");
-          SERIAL_PROTOCOL_F(degTargetBed(),1);
-        #endif //TEMP_BED_PIN
-      #else
-        SERIAL_ERROR_START;
-        SERIAL_ERRORLNPGM(MSG_ERR_NO_THERMISTORS);
-      #endif
-
-        SERIAL_PROTOCOLPGM(" @:");
-        SERIAL_PROTOCOL(getHeaterPower(tmp_extruder));
-
-        SERIAL_PROTOCOLPGM(" B@:");
-        SERIAL_PROTOCOL(getHeaterPower(-1));
-
-        SERIAL_PROTOCOL_NEWLINE;
-      return;
+        gcode_M105();
+        return; // "ok" already printed
       break;
     case 109:
     {// M109 - Wait for extruder heater to reach target.
@@ -1479,16 +1505,17 @@ void process_commands()
         /* continue to loop until we have reached the target temp
           _and_ until TEMP_RESIDENCY_TIME hasn't passed since we reached it */
         while((residencyStart == -1) ||
-              (residencyStart >= 0 && (((unsigned int) (millis() - residencyStart)) < (TEMP_RESIDENCY_TIME * 1000UL))) ) {
+              (residencyStart >= 0 && (((unsigned int) (millis() - residencyStart)) < (TEMP_RESIDENCY_TIME * 1000UL))) )
+        {
       #else
-        while ( target_direction ? (isHeatingHotend(tmp_extruder)) : (isCoolingHotend(tmp_extruder)&&(CooldownNoWait==false)) ) {
+        while ( target_direction ? (isHeatingHotend(tmp_extruder)) : (isCoolingHotend(tmp_extruder)&&(CooldownNoWait==false)) )
+        {
       #endif //TEMP_RESIDENCY_TIME
           if( (millis() - codenum) > 1000UL )
           { //Print Temp Reading and remaining time every 1 second while heating up/cooling down
-            SERIAL_PROTOCOLPGM("T:");
-            SERIAL_PROTOCOL_F(degHotend(tmp_extruder),1);
-            SERIAL_PROTOCOLPGM(" E:");
-            SERIAL_PROTOCOL((int)tmp_extruder);
+            #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+              print_heaterstates();
+            #endif
             #ifdef TEMP_RESIDENCY_TIME
               SERIAL_PROTOCOLPGM(" W:");
               if(residencyStart > -1)
@@ -1501,14 +1528,11 @@ void process_commands()
                  SERIAL_PROTOCOLLNPGM( "?" );
               }
             #else
-              SERIAL_PROTOCOL_NEWLINE;
+              SERIAL_EOL;
             #endif
             codenum = millis();
           }
-          manage_heater();
-          manage_inactivity();
-          lcd_update();
-          lifetime_stats_tick();
+          idle();
         #ifdef TEMP_RESIDENCY_TIME
             /* start/restart the TEMP_RESIDENCY_TIME timer whenever we reach target temp for the first time
               or when current temp falls outside the hysteresis after target temp was reached */
@@ -1540,24 +1564,30 @@ void process_commands()
         LCD_MESSAGEPGM(MSG_BED_HEATING);
 
         codenum = millis();
+        unsigned long m;
+
+        #if EXTRUDERS > 1
+        // set targeted hotend for serial output
+        tmp_extruder = active_extruder;
+        if (swapExtruders() && (tmp_extruder < 2))
+        {
+          tmp_extruder ^= 0x01;
+        }
+        #endif // EXTRUDERS
+
         while(current_temperature_bed < target_temperature_bed - TEMP_WINDOW)
         {
-          if(( millis() - codenum) > 1000 ) //Print Temp Reading every 1 second while heating up.
+          m = millis();
+          if((m - codenum) > 1000 ) //Print Temp Reading every 1 second while heating up.
           {
-            float tt=degHotend(active_extruder);
-            SERIAL_PROTOCOLPGM("T:");
-            SERIAL_PROTOCOL(tt);
-            SERIAL_PROTOCOLPGM(" E:");
-            SERIAL_PROTOCOL((int)active_extruder);
-            SERIAL_PROTOCOLPGM(" B:");
-            SERIAL_PROTOCOL_F(degBed(),1);
-            SERIAL_PROTOCOL_NEWLINE;
-            codenum = millis();
+            codenum = m;
+            // float tt=degHotend(active_extruder);
+          #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+            print_heaterstates();
+            SERIAL_EOL;
+          #endif
           }
-          manage_heater();
-          manage_inactivity();
-          lcd_update();
-          lifetime_stats_tick();
+          idle();
           if (printing_state != PRINT_STATE_HEATING_BED)
           {
               // print aborted
@@ -1738,7 +1768,7 @@ void process_commands()
       SERIAL_PROTOCOLPGM("E:");
       SERIAL_PROTOCOL(float(st_get_position(E_AXIS))/axis_steps_per_unit[E_AXIS]);
 
-      SERIAL_PROTOCOL_NEWLINE;
+      SERIAL_EOL;
       break;
     case 120: // M120
       enable_endstops(false) ;
@@ -1930,7 +1960,7 @@ void process_commands()
          SERIAL_ECHOPGM(",");
          SERIAL_ECHO(extruder_offset[Y_AXIS][tmp_extruder]);
       }
-      SERIAL_ECHO_NEWLINE;
+      SERIAL_EOL;
     }break;
     #endif
     case 220: // M220 S<factor in percent>- set speed factor override percentage
@@ -1975,7 +2005,7 @@ void process_commands()
           SERIAL_PROTOCOL(servo_index);
           SERIAL_PROTOCOLPGM(": ");
           SERIAL_PROTOCOL(servos[servo_index].read());
-          SERIAL_PROTOCOL_NEWLINE;
+          SERIAL_EOL;
         }
       }
       break;
@@ -2039,7 +2069,7 @@ void process_commands()
         SERIAL_PROTOCOL(unscalePID_i(Ki));
         SERIAL_PROTOCOLPGM(" d:");
         SERIAL_PROTOCOL(unscalePID_d(Kd));
-        SERIAL_PROTOCOL_NEWLINE;
+        SERIAL_EOL;
       }
       break;
     #endif //PIDTEMP
@@ -2060,7 +2090,7 @@ void process_commands()
             SERIAL_PROTOCOL(unscalePID_i(bedKi));
             SERIAL_PROTOCOLPGM(" d:");
             SERIAL_PROTOCOL(unscalePID_d(bedKd));
-            SERIAL_PROTOCOL_NEWLINE;
+            SERIAL_EOL;
         }
       }
       break;
@@ -2236,10 +2266,7 @@ void process_commands()
         uint8_t cnt=0;
         while(!lcd_clicked()){
           cnt++;
-          manage_heater();
-          manage_inactivity();
-          lcd_update();
-          lifetime_stats_tick();
+          idle();
           if(cnt==0)
           {
           #if BEEPER > 0
@@ -2280,6 +2307,8 @@ void process_commands()
     {
         if (printing_state == PRINT_STATE_RECOVER)
           break;
+
+        serial_action_P(PSTR("pause"));
 
         st_synchronize();
         float target[4];
@@ -2333,11 +2362,9 @@ void process_commands()
     #if EXTRUDERS > 1
         last_extruder = 0xFF;
     #endif
-        while(card.pause){
-          manage_heater();
-          manage_inactivity();
-          lcd_update();
-          lifetime_stats_tick();
+        while(card.pause)
+        {
+          idle();
         }
 
         plan_set_e_position(current_position[E_AXIS]);
@@ -2357,6 +2384,7 @@ void process_commands()
             current_position[Z_AXIS] = lastpos[Z_AXIS];
             current_position[E_AXIS] = lastpos[E_AXIS];
         }
+        serial_action_P(PSTR("resume"));
     }
     break;
 
@@ -2472,10 +2500,10 @@ void process_commands()
           if (code_seen('X')) {
             x = code_value_long();
             if (code_seen('Y')) y = code_value_long();
-             if (code_seen('S')) lcd_lib_draw_string(x, y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+            if (code_seen('S')) lcd_lib_draw_string(x, y, strchr_pointer + 1);
           } else {
             if (code_seen('Y')) y = code_value_long();
-             if (code_seen('S')) lcd_lib_draw_string_center(y,&cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+            if (code_seen('S')) lcd_lib_draw_string_center(y, strchr_pointer + 1);
           }
         }
         break;
@@ -2487,10 +2515,10 @@ void process_commands()
           if (code_seen('X')) {
             x = code_value_long();
             if (code_seen('Y')) y = code_value_long();
-             if (code_seen('S')) lcd_lib_clear_string(x, y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+            if (code_seen('S')) lcd_lib_clear_string(x, y, strchr_pointer + 1);
           } else {
             if (code_seen('Y')) y = code_value_long();
-             if (code_seen('S')) lcd_lib_clear_string_center(y, &cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1]);
+            if (code_seen('S')) lcd_lib_clear_string_center(y, strchr_pointer + 1);
           }
         }
         break;
@@ -2882,6 +2910,21 @@ void controllerFan()
 }
 #endif
 
+/**
+ * Standard idle routine keeps the machine alive
+ */
+void idle(bool bCheckSerial)
+{
+    manage_heater();
+    manage_inactivity();
+    lcd_update();
+    lifetime_stats_tick();
+    if (bCheckSerial && (MYSERIAL.available() > 0))
+    {
+        lastSerialCommandTime = millis();
+    }
+}
+
 void manage_inactivity()
 {
   checkFilamentSensor();
@@ -3054,9 +3097,10 @@ void setPwmFrequency(uint8_t pin, int val)
 }
 #endif //FAST_PWM_FAN
 
-bool setTargetedHotend(int code){
-  tmp_extruder = active_extruder;
-  if(code_seen('T')) {
+bool setTargetedHotend(int code)
+{
+  if(code_seen('T'))
+  {
     tmp_extruder = code_value();
     #if EXTRUDERS > 1
     if (swapExtruders() && (tmp_extruder < 2))
@@ -3083,6 +3127,10 @@ bool setTargetedHotend(int code){
       SERIAL_ECHOLN(tmp_extruder);
       return true;
     }
+  }
+  else
+  {
+    tmp_extruder = active_extruder;
   }
   return false;
 }

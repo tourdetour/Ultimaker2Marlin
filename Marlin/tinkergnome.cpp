@@ -295,7 +295,15 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         }
         else if (nr == menu_index++)
         {
-            opt.setData(MENU_NORMAL, lcd_print_ask_pause);
+            if (IS_SD_PRINTING)
+            {
+                opt.setData(MENU_NORMAL, lcd_print_ask_pause);
+            }
+            else
+            {
+                opt.setData(MENU_NORMAL, lcd_print_tune);
+
+            }
         }
         else if (nr == menu_index++)
         {
@@ -332,7 +340,14 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         }
         else if (nr == menu_index++)
         {
-            opt.setData(MENU_NORMAL, lcd_print_ask_pause);
+            if (IS_SD_PRINTING)
+            {
+                opt.setData(MENU_NORMAL, lcd_print_ask_pause);
+            }
+            else
+            {
+                opt.setData(MENU_NORMAL, lcd_print_tune);
+            }
         }
         else if (nr == menu_index++)
         {
@@ -1420,7 +1435,7 @@ void lcd_menu_printing_tg()
                     lcd_lib_draw_gfx(54, 15, hourglassGfx);
                     lcd_lib_draw_stringP(64, 15, (movesplanned() < 1) ? PSTR("Paused...") : PSTR("Pausing..."));
                 }
-                else
+                else if (IS_SD_PRINTING)
                 {
                     if (progress)
                     {
@@ -1492,7 +1507,7 @@ void lcd_menu_printing_tg()
             {
                 lcd_lib_draw_string_leftP(BOTTOM_MENU_YPOS, PSTR("Heating nozzle"));
 #if EXTRUDERS > 1
-                int_to_string(active_extruder+1, buffer, NULL);
+                int_to_string(tmp_extruder+1, buffer, NULL);
                 lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT + 15*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, buffer);
 #endif // EXTRUDERS
                 index += 3;
@@ -1510,7 +1525,15 @@ void lcd_menu_printing_tg()
         }
         if (!(flags & MENU_STATUSLINE))
         {
-            lcd_lib_draw_string_left(5, card.longFilename);
+            if (IS_SD_PRINTING)
+            {
+                lcd_lib_draw_string_left(5, card.longFilename);
+            }
+            else
+            {
+                lcd_lib_draw_string_leftP(5, PSTR("USB communication..."));
+            }
+
         }
         lcd_lib_update_screen();
     }
