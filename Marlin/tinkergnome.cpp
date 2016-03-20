@@ -295,6 +295,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         }
         else if (nr == menu_index++)
         {
+//            opt.setData(MENU_NORMAL, lcd_print_ask_pause);
             if (IS_SD_PRINTING)
             {
                 opt.setData(MENU_NORMAL, lcd_print_ask_pause);
@@ -340,6 +341,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         }
         else if (nr == menu_index++)
         {
+//            opt.setData(MENU_NORMAL, lcd_print_ask_pause);
             if (IS_SD_PRINTING)
             {
                 opt.setData(MENU_NORMAL, lcd_print_ask_pause);
@@ -1386,7 +1388,7 @@ static unsigned long predictTimeLeft()
 
 void lcd_menu_printing_tg()
 {
-    if (card.pause || isPauseRequested())
+    if (card.pause)
     {
         menu.add_menu(menu_t(lcd_select_first_submenu, lcd_menu_print_resume, NULL, MAIN_MENU_ITEM_POS(0)), true);
         if (!checkFilamentSensor())
@@ -1430,7 +1432,7 @@ void lcd_menu_printing_tg()
             {
             default:
 
-                if (card.pause || isPauseRequested())
+                if (card.pause)
                 {
                     lcd_lib_draw_gfx(54, 15, hourglassGfx);
                     lcd_lib_draw_stringP(64, 15, (movesplanned() < 1) ? PSTR("Paused...") : PSTR("Pausing..."));
