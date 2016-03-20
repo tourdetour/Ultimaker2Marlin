@@ -231,9 +231,9 @@ uint8_t axis_relative_state = 0;
 
 static char cmdbuffer[BUFSIZE][MAX_CMD_SIZE];
 #if BUFSIZE > 8
-static uint16_t serialCmd = 0;
+uint16_t serialCmd = 0;
 #else
-static uint8_t serialCmd = 0;
+uint8_t serialCmd = 0;
 #endif // BUFSIZE
 static int bufindr = 0;
 static int bufindw = 0;
@@ -503,6 +503,7 @@ void loop()
           if(card.logging)
           {
             process_command(cmdbuffer[bufindr]);
+            serialCmd &= ~(1 << bufindr);
           }
           else
           {
@@ -518,9 +519,11 @@ void loop()
       else
       {
         process_command(cmdbuffer[bufindr]);
+        serialCmd &= ~(1 << bufindr);
       }
     #else
       process_command(cmdbuffer[bufindr]);
+      serialCmd &= ~(1 << bufindr);
     #endif //SDSUPPORT
     if (buflen > 0)
     {
@@ -529,7 +532,7 @@ void loop()
       bufindr %= BUFSIZE;
     }
   }
-  idle(false);
+  idle();
   checkHitEndstops();
 }
 
@@ -642,9 +645,10 @@ static void get_command()
 
         }
 #ifdef ENABLE_ULTILCD2
-        if (!code_seen(cmdbuffer[bufindw], 'M') || (code_value_long() != 105))
+        if (code_seen(cmdbuffer[bufindw], 'M') && (code_value_long() == 105))
         {
-            lastSerialCommandTime = millis();
+            // remove the serial flag for M105 commands
+            serialCmd &= ~(1 << bufindw);
         }
 #endif
         ++bufindw;
@@ -668,8 +672,7 @@ static void get_command()
     return;
   if (serial_count!=0)
   {
-    if (millis() - lastSerialCommandTime < SERIAL_CONTROL_TIMEOUT)
-      return;
+    if (buflen && serialCmd)
     serial_count = 0;
   }
   if (card.pause)
@@ -2947,16 +2950,12 @@ void controllerFan()
 /**
  * Standard idle routine keeps the machine alive
  */
-void idle(bool bCheckSerial)
+void idle()
 {
     manage_heater();
     manage_inactivity();
     lcd_update();
     lifetime_stats_tick();
-    if (buflen && serialCmd)
-    {
-        lastSerialCommandTime = millis();
-    }
 }
 
 void manage_inactivity()
