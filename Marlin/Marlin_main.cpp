@@ -673,6 +673,7 @@ static void get_command()
   if (serial_count!=0)
   {
     if (buflen && serialCmd)
+      return;
     serial_count = 0;
   }
   if (card.pause)
@@ -809,6 +810,12 @@ static void axis_is_at_home(int axis) {
     }
 
     current_position[axis] = baseHomePos + add_homeing[axis];
+#if (EXTRUDERS > 1)
+    if (axis <= Y_AXIS)
+    {
+        current_position[axis] += extruder_offset[axis][active_extruder];
+    }
+#endif
     // min_pos[axis] =          base_min_pos(axis);// + add_homeing[axis];
     // max_pos[axis] =          base_max_pos(axis);// + add_homeing[axis];
 }
