@@ -1,3 +1,7 @@
+### This is a fork of TinkerGnome/Ultimaker2Marlin
+Use this *AT YOUR OWN RISK*. I'm just testing out if I can add new features.
+
+
 * Download the latest version from the <a href="https://github.com/TinkerGnome/Ultimaker2Marlin/releases">Release page</a>
 * Description <a href="http://umforum.ultimaker.com/index.php?/topic/10474-tinker-firmware/">en français</a>
 
